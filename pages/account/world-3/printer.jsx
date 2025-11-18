@@ -4,10 +4,10 @@ import { AppContext } from 'components/common/context/AppProvider';
 import { growth, notateNumber, prefix } from 'utility/helpers';
 import styled from '@emotion/styled';
 import Tooltip from '../../../components/Tooltip';
-import { CardTitleAndValue, TitleAndValue } from '@components/common/styles';
+import { Breakdown, CardTitleAndValue, TitleAndValue } from '@components/common/styles';
 import { isGodEnabledBySorcerer } from '../../../parsers/lab';
 import { NextSeo } from 'next-seo';
-import { getCharacterByHighestTalent, getHighestMaxLevelTalentByClass } from '../../../parsers/talents';
+import { CLASSES, getCharacterByHighestTalent, getHighestMaxLevelTalentByClass } from '../../../parsers/talents';
 import { getAtomColliderThreshold } from '../../../parsers/atomCollider';
 import { calcTotals } from '../../../parsers/printer';
 
@@ -19,8 +19,8 @@ const Printer = () => {
   const atomThreshold = getAtomColliderThreshold(state?.account?.accountOptions?.[133]);
 
   const totals = useMemo(() => calcTotals(state?.account), [state?.account]);
-  const highestBrr = getCharacterByHighestTalent(state?.characters, 2, 'Maestro', 'PRINTER_GO_BRRR');
-  const highestMaxLevelBrr = getHighestMaxLevelTalentByClass(state?.characters, 2, 'Maestro', 'PRINTER_GO_BRRR');
+  const highestBrr = getCharacterByHighestTalent(state?.characters, CLASSES.Maestro, 'PRINTER_GO_BRRR');
+  const highestMaxLevelBrr = getHighestMaxLevelTalentByClass(state?.characters, CLASSES.Maestro, 'PRINTER_GO_BRRR');
 
   return <>
     <NextSeo
@@ -48,11 +48,11 @@ const Printer = () => {
               <Stack alignItems={'center'} justifyContent={'center'} sx={{ width: 50, height: 50 }}>
                 <Stack sx={{ width: 42, height: 42 }} justifyContent={'center'} alignItems={'center'} flexShrink={0}>
                   <ItemIcon atom={isAtom}
-                            src={`${prefix}${isAtom ? 'etc/Particle' : `data/${item}`}.png`} alt=""/>
+                            src={`${prefix}${isAtom ? 'etc/Particle' : `data/${item}`}.png`} alt="required-icon"/>
                 </Stack>
                 <Stack direction={'row'} alignItems={'center'} gap={1}>
                   {atoms ?
-                    <img width={14} height={14} src={`${prefix}etc/Particle.png`} alt=""/> : null}
+                    <img width={14} height={14} src={`${prefix}etc/Particle.png`} alt="particle-icon"/> : null}
                   <Typography>{isAtom
                     ? notateNumber(boostedValue, 'MultiplierInfo')
                     : notateNumber(boostedValue)}</Typography>
@@ -77,7 +77,7 @@ const Printer = () => {
               <Stack sx={{ width: 175, textAlign: 'center', flexDirection: { xs: 'column', sm: 'row' } }}
                      alignItems={'center'} gap={2}>
                 <Stack alignItems={'center'} justifyContent={'center'}>
-                  <img className={'class-icon'} src={`${prefix}data/ClassIcons${classIndex}.png`} alt=""/>
+                  <img className={'class-icon'} src={`${prefix}data/ClassIcons${classIndex}.png`} alt="class-icon"/>
                 </Stack>
                 <Stack>
                   <Typography className={'character-name'}>{playerName}</Typography>
@@ -88,14 +88,13 @@ const Printer = () => {
               <Stack direction={'row'} alignItems={'center'} flexWrap={'wrap'} justifyContent={'center'} gap={3}>
                 {printerSlots?.map((slot, slotIndex) => {
                   return <Tooltip key={`${slot?.name}-${slotIndex}`} title={<BoostedTooltip {...slot}/>}>
-                    <Card sx={{ borderColor: slot?.active ? 'success.light' : 'inherit' }}
-                          elevation={slot?.active ? 0 : 5}
-                          variant={slot?.active ? 'outlined' : 'elevation'}>
+                    <Card sx={{ borderColor: slot?.active ? 'success.light' : '#424242', borderWidth: 1 }}
+                          variant='outlined'>
                       <CardContent>
                         {slot?.item !== 'Blank' ?
                           <Stack sx={{ width: 50, height: 50 }} position={'relative'} justifyContent={'flex-start'}
                                  alignItems={'center'}>
-                            <ItemIcon src={`${prefix}data/${slot?.item}.png`} alt=""/>
+                            <ItemIcon src={`${prefix}data/${slot?.item}.png`} alt="item-icon"/>
                             <Typography
                               color={slot?.active && labBonusActive
                                 ? 'multiLight'
@@ -118,16 +117,16 @@ const Printer = () => {
 };
 
 const BoostedTooltip = ({ value, boostedValue, breakdown }) => {
-  return <Stack>
-    <TitleAndValue boldTitle title={'Base value'} value={notateNumber(value, 'Big')}/>
-    <TitleAndValue boldTitle title={'Boosted value'} value={notateNumber(boostedValue, 'Big')}/>
-    {breakdown.length > 0 ? <Stack>
-      <Divider flexItem sx={{ my: 1, backgroundColor: 'black' }}/>
-      {breakdown?.map(({ name, value }) => <TitleAndValue title={name}
-                                                          key={name}
-                                                          value={`${value.toString().match(/^-?\d+(?:\.\d{0,3})?/)?.[0]}x`}/>)}
-    </Stack> : null}
-  </Stack>
+  return (
+    (<Stack>
+      <TitleAndValue boldTitle title={'Base value'} value={notateNumber(value, 'Big')}/>
+      <TitleAndValue boldTitle title={'Boosted value'} value={notateNumber(boostedValue, 'Big')}/>
+      {breakdown.length > 0 ? <Stack>
+        <Divider flexItem sx={{ my: 1 }}/>
+        <Breakdown breakdown={breakdown} notation={'MultiplierInfo'} />
+      </Stack> : null}
+    </Stack>)
+  );
 }
 
 const TotalTooltip = ({ item, value, atoms, highestBrr, highestMaxLevelBrr }) => {
@@ -157,7 +156,7 @@ const TotalTooltip = ({ item, value, atoms, highestBrr, highestMaxLevelBrr }) =>
     {(atoms || isAtom) ?
       <Stack sx={{ ml: .5 }} direction={'row'} gap={2} alignItems={'center'}>
         <img width={24} height={24} src={`${prefix}etc/Particle.png`} alt=""/>
-        <Typography>{notateNumber(atoms * 24, 'MultiplierInfo')} / day </Typography>
+        <Typography>{notateNumber(atoms * 24)} / day </Typography>
       </Stack> : null}
   </Stack>
 }

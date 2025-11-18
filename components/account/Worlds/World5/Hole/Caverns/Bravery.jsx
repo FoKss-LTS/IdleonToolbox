@@ -2,6 +2,7 @@ import { Breakdown, CardTitleAndValue } from '@components/common/styles';
 import { Card, CardContent, Divider, Stack, Typography } from '@mui/material';
 import { cleanUnderscore, commaNotation, msToDate, notateNumber } from '@utility/helpers';
 import React from 'react';
+import { CardWithBreakdown } from '@components/account/Worlds/World5/Hole/commons';
 
 const Bravery = ({ hole }) => {
   return <>
@@ -26,14 +27,15 @@ const Bravery = ({ hole }) => {
                          value={hole?.caverns?.bravery?.timeForNextFight > 0
                            ? msToDate(hole?.caverns?.bravery?.timeForNextFight * 1000)
                            : 'Now!'}/>
-      <CardTitleAndValue title={'Next hour reward'}
-                         value={`${commaNotation(hole?.caverns?.bravery?.nextHourBreakpoint?.hours)}hrs: ${cleanUnderscore(hole?.caverns?.bravery?.nextHourBreakpoint?.reward)}`}/>
+      {hole?.caverns?.bravery?.nextHourBreakpoint ? <CardTitleAndValue title={'Next hour reward'}
+                          value={`${commaNotation(hole?.caverns?.bravery?.nextHourBreakpoint?.hours)}hrs: ${cleanUnderscore(hole?.caverns?.bravery?.nextHourBreakpoint?.reward)}`}/> : null}
+      {hole?.caverns?.bravery?.monumentAfkReq ? <CardWithBreakdown title={'Afk hours req'} breakdown={hole?.caverns?.bravery?.monumentAfkReq}/> : null}
       <CardTitleAndValue title={'Enemy HP'} tooltipTitle={<Breakdown breakdown={hole?.caverns?.bravery?.hps}/>}
                          value={'Hover me!'}/>
     </Stack>
     <Divider sx={{ my: 2 }}/>
     <Stack direction={'row'} gap={2} flexWrap={'wrap'} alignItems={'center'}>
-      {hole?.caverns?.bravery?.bonuses.slice(0, 10).map(({ description, level }, index) => {
+      {hole?.caverns?.bravery?.bonuses.map(({ description, level }, index) => {
         return <Card key={`bonus-${index}`}>
           <CardContent sx={{ width: 300, opacity: level === 0 ? .5 : 1 }}>
             <Typography>Lv. {level}</Typography>

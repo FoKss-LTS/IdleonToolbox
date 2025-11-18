@@ -1,4 +1,4 @@
-import { groupByKey, notateNumber, tryToParse } from '@utility/helpers';
+import { createRange, groupByKey, notateNumber, tryToParse } from '@utility/helpers';
 import {
   deathNote,
   monsters,
@@ -10,27 +10,40 @@ import {
 import { getCharmBonus } from '@parsers/world-6/sneaking';
 import { isArtifactAcquired } from '@parsers/sailing';
 import { getAchievementStatus } from '@parsers/achievements';
+import { getArmorSetBonus } from '@parsers/misc/armorSmithy';
+import { getEmperorBonus } from '@parsers/world-6/emperor';
+import { getTesseractBonus } from '@parsers/tesseract';
 
 const summonEssenceColor = {
-  white: 0,
-  green: 1,
-  yellow: 2,
-  blue: 3,
-  purple: 4,
-  red: 5,
-  cyan: 6
+  0: 'white',
+  1: 'green',
+  2: 'yellow',
+  3: 'blue',
+  4: 'purple',
+  5: 'red',
+  6: 'cyan'
+}
+const stoneNames = {
+  0: 'aether',
+  1: 'grover',
+  2: 'shimmer',
+  3: 'freezer',
+  4: 'hexer',
+  5: 'cinder',
+  6: 'zephyer'
 }
 
 export const getSummoning = (idleonData, accountData, serializedCharactersData) => {
   const rawSummon = tryToParse(idleonData?.Summon);
-  return parseSummoning(rawSummon, accountData, serializedCharactersData);
+  const killRoyKills = tryToParse(idleonData?.KRbest);
+  return parseSummoning(rawSummon, killRoyKills, accountData, serializedCharactersData);
 }
 
-const parseSummoning = (rawSummon, account, serializedCharactersData) => {
+const parseSummoning = (rawSummon, killRoyKills, account, serializedCharactersData) => {
   const highestEndlessLevel = account?.accountOptions?.[319] ?? 0;
   const upgradesLevels = rawSummon?.[0];
   const totalUpgradesLevels = upgradesLevels?.reduce((sum, level) => sum + level, 0);
-  const killroyStat = rawSummon?.[3];
+  const summoningStuff = rawSummon?.[3];
   const wonBattles = rawSummon?.[1];
   const essences = rawSummon?.[2];
   const whiteBattleIcons = ['Piggo', 'Wild_Boar', 'Mallay', 'Squirrel', 'Whale', 'Bunny', 'Chippy', 'Cool_Bird',
@@ -65,13 +78,15 @@ const parseSummoning = (rawSummon, account, serializedCharactersData) => {
       if (bonus) {
         if (acc[monsterData.bonusId]) {
           acc[monsterData.bonusId] += parseFloat(monsterData.bonusQty);
-        } else {
+        }
+        else {
           acc[monsterData.bonusId] = parseFloat(monsterData.bonusQty);
         }
         const whiteOrder = whiteBattleOrder.findIndex((rawName) => monsterData.enemyId === rawName);
         if (whiteOrder !== -1) {
           careerWins[0] += 1;
-        } else {
+        }
+        else {
           const deathNoteOrder = deathNote.find(({ rawName }) => monsterData.enemyId === rawName);
           if (deathNoteOrder) {
             careerWins[deathNoteOrder.world + 1] += 1;
@@ -97,19 +112,24 @@ const parseSummoning = (rawSummon, account, serializedCharactersData) => {
       baseValue: rawValue
     };
   });
+  const gambitStuff = account?.hole?.holesObject?.gambitStuff;
   let upgrades = summoningUpgrades.map((upgrade, index) => {
+    const doubled = gambitStuff && gambitStuff?.includes(index);
     return {
       ...upgrade,
       originalIndex: index,
       level: upgradesLevels?.[index],
-      value: upgradesLevels?.[index] * upgrade.bonusQty
+      value: upgradesLevels?.[index] * upgrade.bonusQty * (doubled ? 2 : 1),
+      doubled
     }
   });
   upgrades = upgrades.map((upgrade, index) => {
     const costDeflation = upgrades.find(({ originalIndex }) => originalIndex === 49);
     const costCrashing = upgrades.find(({ originalIndex }) => originalIndex === 57);
+    const tesseractBonus = getTesseractBonus(account, 54) * account?.accountOptions?.[319];
     const cost = (1 / (1 + costDeflation?.value / 100))
       * (1 / (1 + costCrashing?.value / 100))
+      * (1 / (1 + tesseractBonus / 100))
       * upgrade?.cost
       * Math.pow(upgrade?.costExponent, upgradesLevels?.[index]);
     return { ...upgrade, totalCost: cost }
@@ -118,7 +138,31 @@ const parseSummoning = (rawSummon, account, serializedCharactersData) => {
   const armyHealth = getArmyHealth(upgrades, totalUpgradesLevels, account);
   const armyDamage = getArmyDamage(upgrades, totalUpgradesLevels, account);
   upgrades = groupByKey(upgrades, ({ colour }) => colour);
-
+  const summoningStones = Object.entries(killRoyKills)
+    .filter(([name]) => name.includes('SummzTrz'))
+    .map(([name, kills]) => {
+      const index = parseInt(name.match(/\d+$/)[0], 10);
+      const enemy = summoningEnemies[106 + index];
+      const isBoss6 = enemy?.enemyId === 'Boss6';
+      const rawName = isBoss6 ? 'Boss6A' : enemy?.enemyId
+      const monsterName = monsters?.[rawName]?.Name;
+      const bossHp = 2 * enemy?.hp * Math.pow(4000, kills);
+      const nextLevelHps = createRange(kills + 1, kills + 14).map((futureKills) => {
+        return 2 * enemy?.hp * Math.pow(4000, futureKills)
+      })
+      return {
+        name: enemy?.territoryName,
+        monsterIcon: isBoss6 ? `data/${enemy?.enemyId}` : `afk_targets/${monsterName}`,
+        stoneName: stoneNames[index],
+        kills,
+        index,
+        bonus: `${summonEssenceColor[index]}_` + Math.max(2, 1 + kills) + 'x_higher_bonuses',
+        bossHp,
+        nextLevelHps
+      }
+    })
+    .toSorted((a, b) => a.index - b.index);
+  const totalSummoningStonesKills = summoningStones.reduce((sum, { kills }) => sum + kills, 0);
   return {
     upgrades,
     winnerBonuses,
@@ -128,27 +172,38 @@ const parseSummoning = (rawSummon, account, serializedCharactersData) => {
     allBattles,
     armyHealth,
     armyDamage,
-    killroyStat,
+    summoningStuff,
     highestEndlessLevel,
-    totalWins: allBattles?.flat()?.reduce((sum, {won})=> sum + (won ? 1 : 0) ,0) + highestEndlessLevel
+    totalWins: allBattles?.flat()?.reduce((sum, { won }) => sum + (won ? 1 : 0), 0) + highestEndlessLevel,
+    summoningStones,
+    totalSummoningStonesKills
   }
 }
 
-export const getEndlessBattles = (battles = 100, highestEndlessLevel) => {
+export const getEndlessBattles = (battles = 100, highestEndlessLevel, winnerBonuses) => {
   const endlessBattles = [];
-  for (let i = 0; i < battles; i++) {
+  for (let i = 0; i < highestEndlessLevel + battles; i++) {
     const index = i % 40;
     const difficultyIndex = getEndlessModifier(i, 0, 0);
     const bonusId = summoningEndless.bonusIds?.[index];
-    const bonus = summoningBonuses?.[bonusId - 1];
-    const bonusQty = summoningEndless.bonusQuantities[index];
-    const actualBonus = bonus?.bonus?.includes('<') ? notateNumber(1 + bonusQty / 100, 'MultiplierInfo') : notateNumber(bonusQty, 'Big');
-    bonus.bonus = bonus?.bonus?.replace(/[<{]/, actualBonus);
+    const bonus = structuredClone(summoningBonuses?.[bonusId - 1]);
+    const bonusQty = summoningEndless.bonusQuantities[index] * (1 + (winnerBonuses?.[31]?.value ?? 0) / 100);
+    const actualBonus = bonus?.bonus?.includes('<')
+      ? (1 + bonusQty / 100)
+      : (bonusQty);
+    bonus.bonus = bonus?.bonus?.replace(/[<{]/, actualBonus.toFixed(2).replace('.00', ''));
     const riftIndex = summoningEnemies.findIndex((enemy) => enemy.enemyId.includes('rift1'));
     const monsterId = Math.round(riftIndex + Math.min(4, Math.floor(i / 20)));
     const [name, ...rest] = summoningEndless.difficultiesText?.[difficultyIndex].split('|');
     const monster = summoningEnemies?.[monsterId];
-    endlessBattles.push({ ...monster, bonus, bonusQty, difficulty: { name, sentence: rest.join('_') }, won: highestEndlessLevel > i, icon: `etc/${monster?.enemyId}_monster` });
+    endlessBattles.push({
+      ...monster,
+      bonus,
+      bonusQty,
+      difficulty: { name, sentence: rest.join('_') },
+      won: highestEndlessLevel > i,
+      icon: `etc/${monster?.enemyId}_monster`
+    });
   }
   return endlessBattles;
 }
@@ -164,18 +219,24 @@ const getLocalWinnerBonus = (rawWinnerBonuses, account, index) => {
   const artifactBonus = isArtifactAcquired(account?.sailing?.artifacts, 'The_Winz_Lantern')?.bonus ?? 0;
   const firstAchievement = getAchievementStatus(account?.achievements, 373);
   const secondAchievement = getAchievementStatus(account?.achievements, 379);
-  const { bonusPerLevel, level } = account?.meritsDescriptions?.[5]?.[4];
+  const emperorBonus = getEmperorBonus(account, 8);
+  const armorSetBonus = getArmorSetBonus(account, 'GODSHARD_SET')
+  const { bonusPerLevel, level } = account?.meritsDescriptions[5][4];
   let val;
+
   if (index === 20 || index === 22 || index === 24 || index === 31) {
     val = rawValue;
-  } else if (index === 19) {
+  }
+  else if (index === 19) {
     val = 3.5 * rawValue *
       (1 + charmBonus / 100) *
       (1 + (artifactBonus +
         Math.min(10, level * bonusPerLevel) +
         firstAchievement +
-        secondAchievement) / 100);
-  } else if (index >= 20 && index <= 33) {
+        secondAchievement +
+        armorSetBonus) / 100);
+  }
+  else if (index >= 20 && index <= 33) {
     const multiCalc = getLocalWinnerBonus(rawWinnerBonuses, account, 31);
     const multi = multiCalc === 0 ? 0 : multiCalc;
     val = rawValue *
@@ -184,8 +245,11 @@ const getLocalWinnerBonus = (rawWinnerBonuses, account, index) => {
         Math.min(10, level * bonusPerLevel) +
         firstAchievement +
         secondAchievement +
+        armorSetBonus +
+        emperorBonus +
         multi) / 100);
-  } else {
+  }
+  else {
     const multiCalc = getLocalWinnerBonus(rawWinnerBonuses, account, 31);
     const multi = multiCalc === 0 ? 0 : multiCalc;
     val = 3.5 * rawValue *
@@ -194,11 +258,19 @@ const getLocalWinnerBonus = (rawWinnerBonuses, account, index) => {
         Math.min(10, level * bonusPerLevel) +
         firstAchievement +
         secondAchievement +
+        armorSetBonus +
+        emperorBonus +
         multi) / 100);
   }
   return val;
 }
+const getLocalSummoningBonus = (upgrades, index) => {
+  return upgrades.find(({ originalIndex }) => originalIndex === index)?.value || 0
+}
+const getStoneBossHp = ({ type }) => {
 
+  return 2 * summoningEnemies[type] * Math.pow(4000, kills);
+}
 const getArmyHealth = (upgrades, totalUpgradesLevels, account) => {
   const additiveArmyHealth = [1, 10, 35, 37].reduce((sum, bonusIndex) => {
     const hpBonus = upgrades.find(({ originalIndex }) => originalIndex === bonusIndex) || {};

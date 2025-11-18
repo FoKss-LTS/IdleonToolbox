@@ -3,7 +3,6 @@ import { AppContext } from '@components/common/context/AppProvider';
 import { Box, Stack, ToggleButton, ToggleButtonGroup, useMediaQuery } from '@mui/material';
 import Characters from '../components/dashboard/Characters';
 import Account from '../components/dashboard/Account';
-import SettingsIcon from '@mui/icons-material/Settings';
 import { isProd, tryToParse } from '@utility/helpers';
 import Etc from '../components/dashboard/Etc';
 import { NextSeo } from 'next-seo';
@@ -13,9 +12,12 @@ import DashboardSettings from '../components/common/DashboardSettings';
 import { CONTENT_PERCENT_SIZE } from '@utility/consts';
 import Button from '@mui/material/Button';
 import { migrateConfig } from '@utility/migrations';
+import { IconSettingsFilled } from '@tabler/icons-react';
+import { getPrinterExclusions } from '@parsers/printer';
+import { getCrystalCountdownSkills } from '@parsers/talents';
 
 const baseTrackers = {
-  version: 2,
+  version: 26,
   account: {
     General: {
       tasks: {
@@ -49,18 +51,24 @@ const baseTrackers = {
             checked: true
           },
           { name: 'newCharacters', checked: true },
-          { name: 'gemsFromBosses', checked: true }
+          { name: 'gemsFromBosses', checked: true },
+          { name: 'familyObols', checked: true },
+          { name: 'freeCompanion', checked: true }
         ]
       }
     },
     'World 1': {
       stamps: {
         checked: true,
-        options: [{ name: 'gildedStamps', checked: true }]
+        options: [{ name: 'gildedStamps', checked: true }, { name: 'showGildedWhenNoAtomDiscount', checked: false }]
       },
       owl: {
         checked: true,
         options: [{ name: 'featherRestart', checked: true }, { name: 'megaFeatherRestart', checked: true }]
+      },
+      forge: {
+        checked: true,
+        options: [{ name: 'emptySlots', checked: true }]
       }
     },
     'World 2': {
@@ -92,7 +100,8 @@ const baseTrackers = {
             props: { label: 'Threshold', value: 1, minValue: 1 },
             checked: true
           },
-          { name: 'shimmerIsland', checked: true }
+          { name: 'shimmerIsland', checked: true },
+          { name: 'garbageUpgrade', checked: true }
         ]
       },
       postOffice: {
@@ -107,7 +116,13 @@ const baseTrackers = {
       },
       arcade: { checked: true, options: [{ name: 'balls', checked: true }] },
       weeklyBosses: { checked: true, options: [] },
-      killRoy: { checked: true, options: [] },
+      killRoy: {
+        checked: true,
+        options: [
+          { name: 'general', checked: true, helperText: 'Alert when Killroy is available' },
+          { name: 'underHundredKills', checked: true, helperText: 'Alert when current Killroy has monsters below 100 kills (for equinox)' }
+        ]
+      },
       kangaroo: {
         checked: true,
         options: [
@@ -125,7 +140,14 @@ const baseTrackers = {
       printer: {
         checked: true,
         options: [
-          { name: 'includeOakAndCopper', category: 'atoms', checked: false },
+          {
+            name: 'includeResource',
+            type: 'array',
+            props: { value: getPrinterExclusions(), type: 'img' },
+            checked: true,
+            category: 'atoms',
+            helperText: 'Exclude'
+          },
           { name: 'showAlertWhenFull', checked: false }]
       },
       library: {
@@ -154,6 +176,10 @@ const baseTrackers = {
           props: { label: 'Threshold', value: 90, maxValue: 90, minValue: 0, endAdornment: '%' },
           checked: true
         }]
+      },
+      traps: {
+        checked: true,
+        options: [{ name: 'trapsOverdue', checked: true }]
       }
     },
     'World 4': {
@@ -168,14 +194,34 @@ const baseTrackers = {
               label: 'Eggs rarity',
               value: 1,
               minValue: 1,
-              helperText: '1=Copper, 2=Iron, 3=Gold'
+              helperText: '1=Base, 2=Copper, 3=Iron'
             },
             checked: false
           },
-          { name: 'shinies', type: 'input', props: { label: 'Level threshold', value: 5 }, checked: true }
+          { name: 'shinies', type: 'input', props: { label: 'Level threshold', value: 5 }, checked: true },
+          { name: 'breedability', type: 'input', props: { label: 'Level threshold', value: 5 }, checked: true }
         ]
       },
-      cooking: { checked: true, options: [{ name: 'spices', checked: true }] },
+      cooking: {
+        checked: true,
+        options: [
+          { name: 'spices', checked: true },
+          {
+            name: 'ribbons',
+            type: 'input',
+            props: {
+              label: 'Ribbons threshold',
+              value: 0,
+              maxValue: 28,
+              minValue: 0,
+              helperText: 'Empty ribbon slots'
+            },
+            checked: true
+          },
+          { name: 'meals', checked: true, category: 'meals' },
+          { name: 'alertOnlyCookedMeal', checked: false }
+        ]
+      },
       laboratory: {
         checked: true, options: [
           { name: 'chipsRotation', checked: true },
@@ -220,7 +266,27 @@ const baseTrackers = {
             props: { label: 'Power threshold', value: 100, minValue: 1, helperText: '%' }
           },
           { name: 'theHive', checked: true },
-          { name: 'grotto', checked: true }
+          { name: 'grotto', checked: true },
+          {
+            name: 'justice',
+            checked: true,
+            type: 'input',
+            props: { label: 'Reward multi threshold', value: 1, minValue: 1, helperText: '' }
+          },
+          { name: 'villagersLevelUp', checked: true },
+          {
+            name: 'wisdom',
+            checked: true,
+            type: 'input',
+            props: { label: 'Reward multi threshold', value: 1, minValue: 1, helperText: '' }
+          },
+          {
+            name: 'jars',
+            checked: true,
+            type: 'input',
+            props: { label: 'Jars threshold', value: 120, minValue: 1, maxValue: 120, helperText: 'Max of 120 jars' }
+          },
+          { name: 'studyLevelUp', checked: true }
         ]
       }
     },
@@ -251,19 +317,41 @@ const baseTrackers = {
             props: { label: 'Crop Threshold', value: 1, minValue: 1, helperText: '' },
             checked: false
           },
-          { name: 'missingPlots', checked: true }
+          { name: 'missingPlots', checked: true },
+          {
+            name: 'beanTrade',
+            type: 'input',
+            props: { label: 'Bean trade value', value: 1, minValue: 1, helperText: '' },
+            checked: false
+          }
         ]
       },
       summoning: {
-        checked: true, options: [
+        checked: true,
+        options: [
           {
             name: 'familiar',
             checked: true,
             type: 'input',
             props: { label: 'Threshold', value: 10, minValue: 0, helperText: '' }
+          },
+          { name: 'battleAttempts', checked: true }
+        ]
+      },
+      etc: {
+        checked: true,
+        options: [
+          {
+            name: 'emperor',
+            type: 'input',
+            props: { label: 'Attempts', value: 20 },
+            checked: true
           }
         ]
       }
+    },
+    'World 7': {
+      // Placeholder for future World 7 systems
     }
   },
   characters: {
@@ -271,10 +359,19 @@ const baseTrackers = {
     anvil: {
       checked: true,
       options: [
-        { name: 'unspentPoints', checked: true },
+        {
+          name: 'unspentPoints',
+          type: 'input',
+          props: { label: 'Points Threshold', value: 1, minValue: 1, helperText: '' },
+          checked: true
+        },
         { name: 'missingHammers', checked: true },
-        { name: 'anvilOverdue', checked: true },
-        { name: 'showAlertBeforeFull', checked: true, category: 'anvil overdue' }
+        {
+          name: 'anvilOverdue',
+          type: 'input',
+          props: { label: 'Minutes', value: 30, minValue: 1, helperText: 'alert X minutes before' },
+          checked: true
+        }
       ]
     },
     worship: {
@@ -300,7 +397,14 @@ const baseTrackers = {
     crystalCountdown: {
       checked: true, options: [
         { name: 'showMaxed', checked: true },
-        { name: 'showNonMaxed', checked: false }
+        { name: 'showNonMaxed', checked: true },
+        {
+          category: 'skills',
+          name: 'skills',
+          type: 'array',
+          props: { value: getCrystalCountdownSkills(), type: 'img' },
+          checked: true
+        }
       ]
     },
     tools: { checked: true, options: [] },
@@ -329,7 +433,14 @@ const baseTrackers = {
         checked: false
       }]
     },
-    equipment: { checked: true, options: [{ name: 'availableUpgradesSlots', checked: true }] }
+    equipment: { checked: true, options: [{ name: 'availableUpgradesSlots', checked: true }] },
+    classSpecific: {
+      checked: true,
+      options: [
+        { name: 'wrongItems', checked: true, helperText: 'Alert when using class-specific form items while outside form' },
+        { name: 'betterWeapon', checked: true, helperText: 'Alert when there\'s a better form class-specific weapon in your inventory' }
+      ]
+    }
   },
   timers: {
     General: {
@@ -358,10 +469,13 @@ const baseTrackers = {
       printer: { checked: true, options: [] },
       closestTrap: { checked: true, options: [] },
       closestBuilding: { checked: true, options: [] },
-      closestSalt: { checked: true, options: [] }
+      closestSalt: { checked: true, options: [] },
+      equinox: { checked: true, options: [] }
     },
     'World 5': {
-      monument: { checked: true, options: [] }
+      monument: { checked: true, options: [] },
+      justice: { checked: true, options: [] },
+      wisdom: { checked: true, options: [] }
     }
   }
 }
@@ -378,12 +492,11 @@ const Dashboard = () => {
 
   useEffect(() => {
     const migratedConfig = migrateConfig(baseTrackers, state?.trackers);
-    console.log('migratedConfig',migratedConfig);
     setConfig({
       account: migratedConfig.account,
       characters: migratedConfig.characters,
       timers: migratedConfig.timers,
-      version: baseTrackers?.version || 1
+      version: baseTrackers?.version
     })
   }, []);
 
@@ -405,7 +518,7 @@ const Dashboard = () => {
   const handleFileUpload = (data) => {
     const migratedConfig = migrateConfig(baseTrackers, data);
     setConfig(migratedConfig);
-    dispatch({ type: 'trackers', migratedConfig });
+    dispatch({ type: 'trackers', data: migratedConfig });
   }
 
   return <>
@@ -415,28 +528,29 @@ const Dashboard = () => {
     />
     <Stack direction="row" gap={2} justifyContent={'space-between'}>
       <Stack sx={{ maxWidth: !showNarrowSideBanner && !showWideSideBanner ? '100%' : CONTENT_PERCENT_SIZE }}>
-        <Stack mb={1} direction={'row'} alignItems={'center'} gap={3} flexWrap={'wrap'}>
+        <Stack mb={2} direction={'row'} alignItems={'center'} gap={3} flexWrap={'wrap'}>
           <ToggleButtonGroup value={filters} onChange={handleFilters}>
-            <ToggleButton sx={{ textTransform: 'none' }} value="account">Account</ToggleButton>
-            <ToggleButton sx={{ textTransform: 'none' }} value="characters">Characters</ToggleButton>
-            <ToggleButton sx={{ textTransform: 'none' }} value="timers">Timers</ToggleButton>
+            <ToggleButton value="account">Account</ToggleButton>
+            <ToggleButton value="characters">Characters</ToggleButton>
+            <ToggleButton value="timers">Timers</ToggleButton>
           </ToggleButtonGroup>
-          <Button variant={'outlined'} sx={{ textTransform: 'none' }} startIcon={<SettingsIcon/>}
-                  onClick={() => setOpen(true)}>
+          <Button variant={'outlined'} sx={{ textTransform: 'none', height: 32 }}
+            startIcon={<IconSettingsFilled size={20} />}
+            onClick={() => setOpen(true)}>
             Configure alerts
           </Button>
         </Stack>
         <Stack gap={2}>
           {isDisplayed('account') ? <Account trackers={config?.account} characters={characters}
-                                             account={account} lastUpdated={lastUpdated}/> : null}
+            account={account} lastUpdated={lastUpdated} /> : null}
           {isDisplayed('characters') ? <Characters trackers={config?.characters} characters={characters}
-                                                   account={account} lastUpdated={lastUpdated}/> : null}
+            account={account} lastUpdated={lastUpdated} /> : null}
           {isDisplayed('timers') ? <Etc characters={characters} account={account} trackers={config?.timers}
-                                        lastUpdated={lastUpdated}/> : null}
+            lastUpdated={lastUpdated} /> : null}
         </Stack>
       </Stack>
       <DashboardSettings onFileUpload={handleFileUpload} onChange={handleConfigChange} open={open}
-                         onClose={() => setOpen(false)} config={config}/>
+        onClose={() => setOpen(false)} config={config} />
       {showWideSideBanner || showNarrowSideBanner ? <Box
         sx={{
           backgroundColor: isProd ? '' : '#d73333',
@@ -445,11 +559,11 @@ const Dashboard = () => {
           position: 'sticky',
           top: 100
         }}>
-        {showWideSideBanner ? <Adsense
+        {isProd && showWideSideBanner ? <Adsense
           client="ca-pub-1842647313167572"
           slot="2700532291"
         /> : null}
-        {showNarrowSideBanner && !showWideSideBanner ? <Adsense
+        {isProd && showNarrowSideBanner && !showWideSideBanner ? <Adsense
           client="ca-pub-1842647313167572"
           slot="8040203474"
         /> : null}

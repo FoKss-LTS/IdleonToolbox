@@ -10,18 +10,18 @@ import NavItemsList from '../NavItemsList';
 import { useRouter } from 'next/router';
 import { NextLinkComposed } from '../../NextLinkComposed';
 import Link from '@mui/material/Link';
-import { Divider, Stack, Typography } from '@mui/material';
+import { Divider, Stack, useMediaQuery } from '@mui/material';
 import AccountDrawer from './AccountDrawer';
 import CharactersDrawer from './CharactersDrawer';
 import ToolsDrawer from './ToolsDrawer';
-import { shouldDisplayDrawer } from '../../../../utility/helpers';
-import { format } from 'date-fns';
+import { prefix, shouldDisplayDrawer } from '../../../../utility/helpers';
 import { AppContext } from '../../context/AppProvider';
 
 const AppDrawer = ({ permanent }) => {
   const { state } = useContext(AppContext);
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const isXs = useMediaQuery((theme) => theme.breakpoints.down('sm'), { noSsr: true });
 
   useEffect(() => {
     setOpen(false);
@@ -48,17 +48,17 @@ const AppDrawer = ({ permanent }) => {
                 sx={{ mr: 2, display: { xs: 'inherit', lg: 'none' } }}>
       <MenuIcon/>
     </IconButton>
-    <Stack>
-      <Link to={{ pathname: '/', query: router.query, }}
+    {!permanent ? <Stack>
+      <Link to={{ pathname: '/', query: router.query }}
             underline="none" component={NextLinkComposed}
-            sx={{ mr: 2 }}
-            color="inherit" noWrap variant="h6">
-        Idleon Toolbox
+            sx={{ mr: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+            color="inherit" noWrap variant={'h6'}
+      >
+        <img src={`${prefix}data/Coins5.png`} alt={''}/>
+        <span>{isXs ? 'IT' : 'Idleon Toolbox'}</span>
       </Link>
-      {state?.lastUpdated ?
-        <Typography variant={'caption'}>{format(state?.lastUpdated, 'dd/MM/yyyy HH:mm:ss')}</Typography> : null}
-    </Stack>
-    {permanent ? <StyledDrawer variant={'permanent'} open sx={{
+    </Stack> : null}
+    {permanent ? <StyledDrawer variant={'permanent'} open sx={{ // desktop
       display: shouldDisplayDrawer(router.pathname) ? {
         xs: 'none',
         lg: 'inherit'
@@ -66,7 +66,7 @@ const AppDrawer = ({ permanent }) => {
     }}>
       <Toolbar sx={{ height: navBarHeight, minHeight: navBarHeight }}/>
       {getDrawer()}
-    </StyledDrawer> : <StyledDrawer
+    </StyledDrawer> : <StyledDrawer // mobile
       sx={{ display: { xs: 'inherit', lg: 'none' } }}
       anchor={'left'}
       open={open}
@@ -74,8 +74,10 @@ const AppDrawer = ({ permanent }) => {
     >
       <Toolbar sx={{ height: navBarHeight, minHeight: navBarHeight }}/>
       <NavItemsList drawer/>
-      <Divider/>
-      {getDrawer()}
+      {router.pathname.includes('/characters') ? <>
+        <Divider/>
+        <CharactersDrawer/>
+      </> : null}
     </StyledDrawer>}
   </Box>
 };

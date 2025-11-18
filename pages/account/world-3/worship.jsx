@@ -4,6 +4,8 @@ import Tabber from '../../../components/common/Tabber';
 import Charge from '@components/account/Worlds/World3/worship/Charge';
 import Totems from '@components/account/Worlds/World3/worship/Totems';
 import MsaTotalizer from '@components/account/Worlds/World3/worship/MsaTotalizer';
+import { getTabs } from '@utility/helpers';
+import { PAGES } from '@components/constants';
 
 const Worship = () => {
   return (
@@ -13,13 +15,12 @@ const Worship = () => {
         description="Keep track of your worship charge and charge rate for all of your characters"
       />
       <MsaTotalizer/>
-      <Tabber tabs={['Charge', 'Totems']}>
+      <Tabber tabs={getTabs(PAGES.ACCOUNT['world 3'].categories, 'worship')}>
         <Charge/>
         <Totems/>
       </Tabber>
     </>
   );
 };
-
 
 export default Worship;

@@ -11,7 +11,8 @@ import {
   Stack,
   TextField,
   Typography,
-  typographyClasses
+  typographyClasses,
+  useMediaQuery
 } from '@mui/material';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
@@ -23,11 +24,13 @@ import { handleDownload, prefix } from '../../utility/helpers';
 import Tabber from './Tabber';
 import Button from '@mui/material/Button';
 import FileUploadButton from '@components/common/DownloadButton';
+import { IconFileExport } from '@tabler/icons-react';
 
 const DashboardSettings = ({ open, onClose, config, onChange, onFileUpload }) => {
+  const isSm = useMediaQuery((theme) => theme.breakpoints.down('sm'), { noSsr: true });
+
   const handleSettingChange = (e, configType, option, trackerName, section, category) => {
-    console.log('handle change', configType, option, trackerName, section, category);
-    const tempConfig = JSON.parse(JSON.stringify(config));
+    const tempConfig = structuredClone((config));
     const nameClicked = e?.target?.name;
     const sectionRef = section ? tempConfig[configType][section] : tempConfig[configType];
     if (option?.type === 'array') {
@@ -63,20 +66,28 @@ const DashboardSettings = ({ open, onClose, config, onChange, onFileUpload }) =>
 
   return <Dialog open={open} onClose={onClose} fullWidth>
     <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <Stack gap={2} direction={'row'}>
+      <Stack gap={2} direction={'row'} alignItems={'center'}>
         <Typography variant={'h6'}>Configuration</Typography>
-        <FileUploadButton onFileUpload={(data) => {
-          if (data?.account && data?.characters) {
-            onFileUpload(data);
-          }
-        }}>Import</FileUploadButton>
-        <Button onClick={() => handleDownload(config, 'it-dashboard-config')} variant={'outlined'}
-                size={'small'}>Export</Button>
+        <Box display="flex" gap={1}>
+          <FileUploadButton onFileUpload={(data) => {
+            if (data?.account && data?.characters) {
+              onFileUpload(data);
+            }
+          }}>
+            Import
+          </FileUploadButton>
+          {isSm ? <IconButton onClick={() => handleDownload(config, 'it-dashboard-config')}
+                              size="small">
+            <IconFileExport size={18}/>
+          </IconButton> : <Button onClick={() => handleDownload(config, 'it-dashboard-config')} variant="outlined"
+                                  startIcon={<IconFileExport size={18}/>}
+                                  size="small">Export</Button>}
+        </Box>
       </Stack>
       <IconButton onClick={onClose}><CloseIcon/></IconButton>
     </DialogTitle>
     <DialogContent>
-      <Tabber tabs={['Account', 'Character','Timers']}>
+      <Tabber tabs={['Account', 'Character', 'Timers']}>
         <Box><FieldsByType config={config?.account} configType={'account'} onChange={handleSettingChange}/></Box>
         <Box><FieldsByType config={config?.characters} configType={'characters'} onChange={handleSettingChange}/></Box>
         <Box><FieldsByType config={config?.timers} configType={'timers'} onChange={handleSettingChange}/></Box>
@@ -86,13 +97,36 @@ const DashboardSettings = ({ open, onClose, config, onChange, onFileUpload }) =>
 };
 
 const FieldsByType = ({ config, onChange, configType }) => {
+  const [collapsedSections, setCollapsedSections] = useState(() => {
+    if (!config) return {};
+    return Object.keys(config).reduce((acc, section) => {
+      acc[section] = true;
+      return acc;
+    }, {});
+  });
+
+  const handleSectionCollapse = (section) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
   if (configType === 'characters') {
     return <Fields config={config} onChange={onChange} configType={configType}/>
   }
   return config && Object.entries(config)?.map(([section, fields], index) => {
     return <React.Fragment key={`tracker-${index}`}>
-      <Typography variant={'caption'} color={'text.secondary'}>{section}</Typography>
-      <Fields config={fields} onChange={onChange} configType={configType} section={section}/>
+      <Stack sx={{ cursor: 'pointer' }} direction="row" alignItems="center" justifyContent="space-between"
+             onClick={() => handleSectionCollapse(section)}>
+        <Typography variant={'body2'} color={'text.secondary'}>{section}</Typography>
+        <IconButton size="small">
+          {collapsedSections[section] ? <ArrowDropDownIcon/> : <ArrowDropUpIcon/>}
+        </IconButton>
+      </Stack>
+      <Collapse in={!collapsedSections[section]} unmountOnExit>
+        <Fields config={fields} onChange={onChange} configType={configType} section={section}/>
+      </Collapse>
     </React.Fragment>;
   })
 }
@@ -105,7 +139,7 @@ const Fields = ({ config, onChange, configType, section }) => {
   }
 
   return config && Object.entries(config)?.map(([trackerName, data], index) => {
-    return <Box key={`tracker-${trackerName}-${index}`}>
+    return <Box sx={{ ml: 1 }} key={`tracker-${trackerName}-${index}`}>
       <Stack direction={'row'} justifyContent={'space-between'}>
         <FormControlLabel
           sx={{ [`.${typographyClasses.root}`]: { fontSize: 14 } }}

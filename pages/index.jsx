@@ -14,6 +14,8 @@ import { useFlubber } from '../components/hooks/useFlubber';
 import Box from '@mui/material/Box';
 import { NextSeo } from 'next-seo';
 import { Adsense } from '@ctrl/react-adsense';
+import Kofi from '@components/common/Kofi';
+import StructuredData, { createFAQData } from '@components/common/StructuredData';
 
 const Home = () => {
   const indexes = useMemo(() => getRandomNumbersArray(6, 6), []);
@@ -27,6 +29,22 @@ const Home = () => {
   const path = useFlubber(progress, [
     'M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z',
     'm15 5-1.41 1.41L18.17 11H2v2h16.17l-4.59 4.59L15 19l7-7-7-7z']);
+
+  // FAQ data for structured data
+  const faqData = createFAQData([
+    {
+      question: "What is Idleon Toolbox?",
+      answer: "Idleon Toolbox is a comprehensive set of tools and resources designed to help Legends of Idleon players optimize their gameplay, character builds, crafting strategies, and more."
+    },
+    {
+      question: "Is Idleon Toolbox free to use?", 
+      answer: "Yes, Idleon Toolbox is completely free to use for all Legends of Idleon players."
+    },
+    {
+      question: "How do I use idleon toolbox?",
+      answer: "You can find detailed instructions by clicking the 'Login' button, which will display information on how to login via varius methods."
+    }
+  ]);
 
   const handleAnimation = (enter) => {
     setPathIndex(enter ? 0 : 1)
@@ -47,6 +65,7 @@ const Home = () => {
         title="Home | Idleon Toolbox"
         description="Power up your Legends of Idleon adventure with Idleon Toolbox's essential tools and resources for optimizing gameplay, character builds, crafting, and more."
       />
+      <StructuredData data={faqData} />
       {showSideAds ? <>
         <div style={{
           height: 600,
@@ -56,10 +75,10 @@ const Home = () => {
           top: 100,
           left: 50
         }}>
-          <Adsense
+          {isProd && <Adsense
             client="ca-pub-1842647313167572"
             slot="8673408690"
-          />
+          />}
         </div>
         <div style={{
           height: 600,
@@ -69,10 +88,10 @@ const Home = () => {
           top: 100,
           right: 50
         }}>
-          <Adsense
+          {isProd && <Adsense
             client="ca-pub-1842647313167572"
             slot="6626749728"
-          />
+          />}
         </div>
       </> : null}
 
@@ -92,11 +111,7 @@ const Home = () => {
                            variant={'contained'}>
               Join the discord
             </DiscordButton>
-            <a style={{ display: 'flex', alignItems: 'center' }} href="https://ko-fi.com/S6S7BHLQ4" target="_blank"
-               rel="noreferrer">
-              <img height="36" width="150" style={{ border: 0, height: 36, width: '100%', objectFit: 'contain' }}
-                   src="https://cdn.ko-fi.com/cdn/kofi1.png?v=3" alt="Buy Me a Coffee at ko-fi.com"/>
-            </a>
+            <Kofi />
           </Stack>
         </Stack>
         <Stack sx={{ width: breakpoint ? '100%' : 'inherit' }} justifyContent={breakpoint ? 'flex-start' : 'center'}>
@@ -119,7 +134,8 @@ const Home = () => {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     src={`${prefix}etc/bg_${indexes.at(bgIndex)}.png`}
-                    alt=""/> : null
+                    alt={`Idleon Toolbox gameplay feature screenshot ${bgIndex + 1}`}
+                  /> : null
                 })}
               </AnimatePresence>
             </MotionConfig>

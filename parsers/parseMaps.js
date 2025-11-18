@@ -125,11 +125,9 @@ export const filteredGemShopItems = [
 ].toSimpleObject();
 
 export const filteredLootyItems = [
-  'Quest30',
   'Quest42',
   'Quest49',
   'Quest50',
-  'Quest64',
   'EquipmentShoes2',
   'EquipmentPendant18',
   'TestObj4',
@@ -142,7 +140,6 @@ export const filteredLootyItems = [
   'EquipmentSmithingTabs7',
   'EquipmentSmithingTabs8',
   'Quest8',
-  'Quest28',
   'StampB28',
   'StampB29',
   'StampB33',
@@ -203,11 +200,9 @@ export const filteredLootyItems = [
   'DungWeaponSwordF4',
   'DungWeaponSwordF5',
 
-  'DungEquipmentHats4',
   'DungEquipmentShoes4',
   'DungEquipmentShirt4',
   'DungEquipmentRings4',
-  'DungEquipmentPendant4',
   'DungEquipmentPants4',
 ].toSimpleObject();
 

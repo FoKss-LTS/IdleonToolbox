@@ -3,18 +3,19 @@ import Library from '../account/Worlds/World3/Library';
 import { Card, CardContent, Divider, Stack, Typography } from '@mui/material';
 import styled from '@emotion/styled';
 import { cleanUnderscore, getDuration, getRealDateInMs, getTimeAsDays, notateNumber, prefix } from '@utility/helpers';
-import { getMiniBossesData, getRandomEvents } from '@parsers/misc';
+import { getEventShopBonus, getMiniBossesData, getRandomEvents } from '@parsers/misc';
 import Tooltip from '../Tooltip';
 import Timer from '../common/Timer';
 import { calcHappyHours } from '@parsers/dungeons';
 import { getBuildCost } from '@parsers/construction';
 import { getChargeWithSyphon, getClosestWorshiper } from '@parsers/worship';
 import { getAtomBonus } from '@parsers/atomCollider';
-import { format, isPast, isValid } from 'date-fns';
+import { isPast } from 'date-fns';
 import RandomEvent from '@components/account/Misc/RandomEvent';
 import Trade from '@components/account/Worlds/World5/Sailing/Trade';
 import { useRouter } from 'next/router';
 import { calcCost, calcTimeToRankUp, getRefineryCycles } from '@parsers/refinery';
+import { getGambitBonus } from '@parsers/world-5/caverns/gambit';
 
 const maxTimeValue = 9.007199254740992e+15;
 const Etc = ({ characters, account, lastUpdated, trackers }) => {
@@ -26,7 +27,7 @@ const Etc = ({ characters, account, lastUpdated, trackers }) => {
   const events = useMemo(() => getRandomEvents(account), [characters, account, lastUpdated]);
   const nextHappyHours = useMemo(() => calcHappyHours(account?.serverVars?.HappyHours) || [], [account]);
   const nextPrinterCycle = new Date().getTime() + (3600 - (account?.timeAway?.GlobalTime - account?.timeAway?.Printer)) * 1000;
-  const nextCompanionClaim = new Date().getTime() + Math.max(0, 594e6 - (1e3 * account?.timeAway?.GlobalTime - account?.companions?.lastFreeClaim));
+  const nextCompanionClaim = new Date().getTime() + Math.max(0, 594e6 - (1e3 * account?.timeAway?.GlobalTime - (account?.companions?.lastFreeClaim ?? 0)));
   const nextFeatherRestart = new Date().getTime() + (account?.owl?.upgrades?.[4]?.cost - account?.owl?.feathers) / account?.owl?.featherRate * 1000;
   const nextMegaFeatherRestart = new Date().getTime() + (account?.owl?.upgrades?.[8]?.cost - account?.owl?.feathers) / account?.owl?.featherRate * 1000;
   const mfDuration = getDuration(new Date().getTime(), nextMegaFeatherRestart);
@@ -35,6 +36,7 @@ const Etc = ({ characters, account, lastUpdated, trackers }) => {
   const nextGreatestCatch = new Date().getTime() + (account?.kangaroo?.upgrades?.[11]?.cost - account?.kangaroo?.fish) / account?.kangaroo?.fishRate * 60 * 1000;
   const gcDuration = getDuration(new Date().getTime(), nextGreatestCatch);
   const gcLongDuration = nextGreatestCatch > maxTimeValue || gcDuration?.days > 365;
+  const showEquinoxError = account?.equinox?.upgrades.filter(upgrade => upgrade.unlocked).some(upgrade => upgrade.lvl < upgrade.maxLvl);
   const allPetsAcquired = account?.companions?.list?.every(({ acquired }) => acquired);
   const atomBonus = getAtomBonus(account, 'Nitrogen_-_Construction_Trimmer');
   const minibosses = getMiniBossesData(account);
@@ -44,10 +46,13 @@ const Etc = ({ characters, account, lastUpdated, trackers }) => {
   const closestBuilding = account?.towers?.data?.reduce((closestBuilding, building) => {
     const allBlueActive = account?.lab.jewels?.slice(3, 7)?.every(({ active }) => active) ? 1 : 0;
     const jewelTrimmedSlot = account?.lab.jewels?.[3]?.active ? 1 + allBlueActive : 0;
-    const trimmedSlots = jewelTrimmedSlot + (atomBonus ? 1 : 0);
+    const eventBonus = getEventShopBonus(account, 14);
+    const gambitSlot = getGambitBonus(account, 9);
+    const trimmedSlots = jewelTrimmedSlot + (atomBonus ? 1 : 0) + gambitSlot + eventBonus;
     const isSlotTrimmed = building?.slot !== -1 && building?.slot < trimmedSlots;
     const buildCost = getBuildCost(account?.towers, building?.level, building?.bonusInc, building?.index);
     let timeLeft;
+    // for (l = r._customBlock_WorkbenchStuff("TowerBuildSlots", 0, 0) | 0; g < l; )
     if (isSlotTrimmed) {
       const trimmedSlotSpeed = (3 + atomBonus / 100) * account?.construction?.totalBuildRate;
       timeLeft = (buildCost - building?.progress) / (trimmedSlotSpeed) * 1000 * 3600;
@@ -115,7 +120,7 @@ const Etc = ({ characters, account, lastUpdated, trackers }) => {
           icon={'etc/Weekly.png'}
         />}
         {trackers?.General?.companions?.checked && <TimerCard
-          page={'account/premium-currency/companions'}
+          page={'account/prem-currency/companions'}
           tooltipContent={'Next companion claim: ' + getRealDateInMs(nextCompanionClaim)}
           lastUpdated={lastUpdated} time={nextCompanionClaim}
           icon={'afk_targets/Dog.png'}
@@ -128,7 +133,7 @@ const Etc = ({ characters, account, lastUpdated, trackers }) => {
             tooltipContent={`Overflow syphon Charge (${bestWizard?.worship?.maxCharge + bestChargeSyphon}): ` + getRealDateInMs(timeToOverCharge)}
             lastUpdated={lastUpdated} time={timeToOverCharge}
             icon={'data/UISkillIcon475.png'}
-            timerPlaceholder={'Overflowing charge'}
+            timerPlaceholder={'Full'}
           />
         </> : null}
         {trackers?.General?.closestFullWorship?.checked && account?.finishedWorlds?.World2 && closestWorshiper?.timeLeft !== 0
@@ -161,9 +166,9 @@ const Etc = ({ characters, account, lastUpdated, trackers }) => {
               <div>
                 <Stack sx={{ cursor: 'pointer' }}
                        onClick={() => router.push({ pathname: '/account/misc/random-events' })}
-                       direction={'row'} gap={2}>
+                       direction={'row'} gap={1}>
                   <IconImg src={`${prefix}etc/${events?.[0]?.eventName}.png`} alt=""/>
-                  {isValid(events?.[0]?.date) ? format(events?.[0]?.date, 'dd/MM/yyyy HH:mm:ss') : null}
+                  <Timer type={'countdown'} date={events?.[0]?.date} lastUpdated={lastUpdated}/>
                 </Stack>
                 <Divider sx={{ mt: 1 }}/>
               </div>
@@ -173,14 +178,10 @@ const Etc = ({ characters, account, lastUpdated, trackers }) => {
                 title={<Trade {...account?.sailing?.trades?.[0]}/>}>
                 <Stack sx={{ cursor: 'pointer' }} onClick={() => router.push({ pathname: '/account/world-5/sailing' })}
                        direction={'row'}
-                       gap={.5}>
-                  <Stack direction={'row'}>
-                    <img src={`${prefix}data/${account?.sailing?.trades?.[0]?.rawName}.png`} alt=""/>/
-                    <img src={`${prefix}data/SailT0.png`} alt=""/>
-                  </Stack>
-                  {isValid(new Date(account?.sailing?.trades?.[0]?.date))
-                    ? format(new Date(account?.sailing?.trades?.[0]?.date), 'dd/MM/yyyy HH:mm:ss')
-                    : null}
+                       gap={1}>
+                  <IconImg src={`${prefix}data/${account?.sailing?.trades?.[0]?.rawName}.png`} alt=""/>
+                  <Timer type={'countdown'} date={new Date(account?.sailing?.trades?.[0]?.date).getTime()}
+                         lastUpdated={lastUpdated}/>
                 </Stack>
               </Tooltip>
               : null}
@@ -260,7 +261,7 @@ const Etc = ({ characters, account, lastUpdated, trackers }) => {
           /> : null}
         </Section> : null}
       </Stack>}
-      {!emptyAlerts?.['World 3'] && <Section title={'World 3'}>
+      {!emptyAlerts?.['World 3'] && account?.finishedWorlds?.World2 && <Section title={'World 3'}>
         {trackers?.['World 3']?.printer?.checked && account?.finishedWorlds?.World2 ? <TimerCard
           page={'account/world-3/printer'}
           tooltipContent={'Next printer cycle: ' + getRealDateInMs(nextPrinterCycle)}
@@ -285,18 +286,50 @@ const Etc = ({ characters, account, lastUpdated, trackers }) => {
             tooltipContent={'Closest salt: ' + getRealDateInMs(closestSalt?.timeLeft)}
             lastUpdated={lastUpdated} time={closestSalt?.timeLeft}
             icon={`data/${closestSalt?.icon}.png`}/> : null}
+        {trackers?.['World 3']?.equinox?.checked && account?.finishedWorlds?.World2 ? <TimerCard
+          page={'account/world-3/equinox'}
+          timerPlaceholder={'Full!'}
+          showAsError={showEquinoxError}
+          tooltipContent={'Next level: ' + getRealDateInMs(account?.equinox?.timeToFull)}
+          lastUpdated={lastUpdated} time={account?.equinox?.timeToFull} icon={'data/Quest78.png'}/> : null}
       </Section>}
-      {!emptyAlerts?.['World 5'] && <Section title={'World 5'}>
+      {!emptyAlerts?.['World 5'] && account?.finishedWorlds?.World4 && <Section title={'World 5'}>
         {trackers?.['World 5']?.monument?.checked && account?.finishedWorlds?.World4 ?
           <TimerCard
             page={'account/world-5/hole'}
             tooltipContent={`Next fight: ${account?.hole?.caverns?.bravery?.timeForNextFight < 0
               ? 'now!'
-              : getRealDateInMs(account?.hole?.caverns?.bravery?.timeForNextFight)}`}
+              : getRealDateInMs(Date.now() + account?.hole?.caverns?.bravery?.timeForNextFight * 1000)}`}
             lastUpdated={lastUpdated}
             time={new Date().getTime() + account?.hole?.caverns?.bravery?.timeForNextFight * 1000}
-            timerPlaceholder={account?.hole?.caverns?.bravery?.timeForNextFight < 0 ? 'Fight!' : ''}
+            timerPlaceholder={account?.hole?.caverns?.bravery?.timeForNextFight < 0
+              ? `Fight! (${Math.round(100 * account?.hole?.caverns?.bravery?.rewardMulti) / 100}x)`
+              : ''}
             icon={`etc/Bravery_Statue.png`}/> : null}
+        {trackers?.['World 5']?.justice?.checked && account?.finishedWorlds?.World4 ?
+          <TimerCard
+            page={'account/world-5/hole'}
+            tooltipContent={`Next fight: ${account?.hole?.caverns?.justice?.timeForNextFight < 0
+              ? 'now!'
+              : getRealDateInMs(Date.now() + account?.hole?.caverns?.justice?.timeForNextFight * 1000)}`}
+            lastUpdated={lastUpdated}
+            time={new Date().getTime() + account?.hole?.caverns?.justice?.timeForNextFight * 1000}
+            timerPlaceholder={account?.hole?.caverns?.justice?.timeForNextFight < 0
+              ? `Fight! (${Math.round(100 * account?.hole?.caverns?.justice?.rewardMulti) / 100}x)`
+              : ''}
+            icon={`data/Justice_Monument_x1.png`}/> : null}
+        {trackers?.['World 5']?.wisdom?.checked && account?.finishedWorlds?.World4 ?
+          <TimerCard
+            page={'account/world-5/hole'}
+            tooltipContent={`Next fight: ${account?.hole?.caverns?.wisdom?.timeForNextFight < 0
+              ? 'now!'
+              : getRealDateInMs(Date.now() + account?.hole?.caverns?.wisdom?.timeForNextFight * 1000)}`}
+            lastUpdated={lastUpdated}
+            time={new Date().getTime() + account?.hole?.caverns?.wisdom?.timeForNextFight * 1000}
+            timerPlaceholder={account?.hole?.caverns?.wisdom?.timeForNextFight < 0
+              ? `Fight! (${Math.round(100 * account?.hole?.caverns?.wisdom?.rewardMulti) / 100}x)`
+              : ''}
+            icon={`data/Wisdom_Monument_x1.png`}/> : null}
       </Section>}
 
       {trackers?.Etc?.minibosses?.checked && <Section title={'Bosses'}>
@@ -312,7 +345,7 @@ const Etc = ({ characters, account, lastUpdated, trackers }) => {
                   <Stack>
                     <Typography>{cleanUnderscore(name)}</Typography>
                     <Stack direction={'row'} alignItems={'center'} gap={1}
-                           divider={<Divider sx={{ bgcolor: 'text.secondary' }} orientation={'vertical'}
+                           divider={<Divider orientation={'vertical'}
                                              flexItem/>}>
                       <Typography component={'span'} color="text.secondary">Current: <Typography
                         color={maxed ? 'error.light' : 'inherit'} component={'span'}>{maxed

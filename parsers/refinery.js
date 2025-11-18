@@ -8,8 +8,7 @@ import { getShinyBonus } from '@parsers/breeding';
 import { isRiftBonusUnlocked } from '@parsers/world-4/rift';
 import { constructionMasteryThresholds } from '@parsers/construction';
 import { getArcadeBonus } from '@parsers/arcade';
-import { getHighestLevelOfClass } from '@parsers/misc';
-import { getHighestTalentByClass } from '@parsers/talents';
+import { checkCharClass, CLASSES, getHighestTalentByClass } from '@parsers/talents';
 import { getFamilyBonusBonus } from '@parsers/family';
 import { getVoteBonus } from '@parsers/world-2/voteBallot';
 
@@ -96,8 +95,10 @@ export const getRefineryCycleBonuses = (account, characters) => {
       : 0
   }
   const arcadeBonus = getArcadeBonus(account?.arcade?.shop, 'Refinery_Speed')?.bonus ?? 0;
-  const highestLevelDivineKnight = getHighestLevelOfClass(charactersLevels, 'Divine_Knight');
-  const theFamilyGuy = getHighestTalentByClass(characters, 3, 'Divine_Knight', 'THE_FAMILY_GUY')
+  const divineKnightsLevels = charactersLevels?.filter((character) =>
+    checkCharClass(character?.class, CLASSES.Divine_Knight))?.map(({ level }) => level);
+  const highestLevelDivineKnight = divineKnightsLevels?.length > 0 ? Math.max(...divineKnightsLevels) : 0;
+  const theFamilyGuy = getHighestTalentByClass(characters, CLASSES.Divine_Knight, 'THE_FAMILY_GUY')
   const familyRefinerySpeed = getFamilyBonusBonus(classFamilyBonuses, 'Refinery_Speed', highestLevelDivineKnight);
   const amplifiedFamilyBonus = (familyRefinerySpeed * (theFamilyGuy > 0 ? (1 + theFamilyGuy / 100) : 1) || 0)
   const voteBonus = getVoteBonus(account, 33);
@@ -111,7 +112,7 @@ export const getRefineryCycleBonuses = (account, characters) => {
     { name: 'Shinies', value: shinyRefineryBonus / 100 },
     { name: 'Const mastery', value: constructionMastery / 100 },
     { name: 'Arcade', value: arcadeBonus / 100 },
-    { name: 'Vote', value: voteBonus / 100 },
+    { name: 'Vote', value: voteBonus / 100 }
   ]
   return {
     bonusBreakdown,
@@ -127,7 +128,7 @@ export const getRefineryCycles = (account, characters, lastUpdated) => {
   const labCycleBonus = account?.lab?.labBonuses?.find((bonus) => bonus.name === 'Gilded_Cyclical_Tubing')?.active
     ? 3
     : 1;
-  const squires = characters?.filter((character) => character?.class === 'Squire' || character?.class === 'Divine_Knight');
+  const squires = characters?.filter((character) => checkCharClass(character?.class, CLASSES.Squire) || checkCharClass(character?.class, CLASSES.Divine_Knight));
   const squiresDataTemp = squires.reduce((res, character) => {
     const { name, talents, cooldowns, postOffice, afkTime } = character;
     const cooldownBonus = getPostOfficeBonus(postOffice, 'Magician_Starterpack', 2);
@@ -152,19 +153,21 @@ export const getRefineryCycles = (account, characters, lastUpdated) => {
   const timePassed = (new Date().getTime() - (lastUpdated ?? 0)) / 1000;
   const breakdown = [
     ...bonusBreakdown,
+    { title: 'Multiplicative' },
+    { name: '' },
     { name: 'Lab', value: labCycleBonus }
   ];
   const combustion = {
     name: 'Combustion',
-    time: Math.ceil(900 / ((1 + bonus / 100) * labCycleBonus)) - (account?.refinery?.timePastCombustion % 1),
+    time: Math.ceil(900 / ((1 + bonus / 100) * labCycleBonus)),
     timePast: account?.refinery?.timePastCombustion + timePassed,
-    breakdown: [{ name: 'Base', value: 900 * Math.pow(4, 0) }, ...breakdown]
+    breakdown: [{ title: 'Additive' }, { name: '' }, { name: 'Base', value: 900 * Math.pow(4, 0) }, ...breakdown]
   };
   const synthesis = {
     name: 'Synthesis',
-    time: Math.ceil(3600 / ((1 + bonus / 100) * labCycleBonus)) - (account?.refinery?.timePastSynthesis % 1),
+    time: Math.ceil(3600 / ((1 + bonus / 100) * labCycleBonus)),
     timePast: account?.refinery?.timePastSynthesis + timePassed,
-    breakdown: [{ name: 'Base', value: 900 * Math.pow(4, 1) }, ...breakdown]
+    breakdown: [{ title: 'Additive' }, { name: '' }, { name: 'Base', value: 900 * Math.pow(4, 1) }, ...breakdown]
   }
   return {
     ...squiresDataTemp,
@@ -182,7 +185,7 @@ export const calcTimeToRankUp = (account, characters, lastUpdated, refineryData,
   const combustionCyclesPerDay = (24 * 60 * 60 / (cycleByType / (1 + (bonus) / 100))) + (includeSquireCycles
     ? (refineryData?.squiresCycles ?? 0)
     : 0);
-  const timeLeft = ((powerCap - refined) / powerPerCycle) / combustionCyclesPerDay * 24 / (labCycleBonus);
+  const timeLeft = Math.floor((powerCap - refined) / powerPerCycle) / combustionCyclesPerDay * 24 / (labCycleBonus);
   const totalTime = ((powerCap - 0) / powerPerCycle) / combustionCyclesPerDay * 24 / (labCycleBonus);
   return {
     timeLeft: new Date().getTime() + (timeLeft * 3600 * 1000),

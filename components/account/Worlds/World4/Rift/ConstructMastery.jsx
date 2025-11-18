@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, Stack, Typography } from '@mui/material';
 import { cleanUnderscore, prefix } from '../../../../../utility/helpers';
 import { constructionMasteryThresholds } from '../../../../../parsers/construction';
+import { CardTitleAndValue } from '@components/common/styles';
 
 const defaultBonuses = [
   '+1%_REFINERY_SPD_PER_10_TOT_LV',
@@ -15,24 +16,20 @@ const defaultBonuses = [
 
 const ConstructMastery = ({ totalLevels }) => {
   return <>
-    <Stack>
-      <Card sx={{ width: 'fit-content', my: 2 }}><CardContent>Construct Lv. {totalLevels}</CardContent></Card>
-    </Stack>
-    {totalLevels >= constructionMasteryThresholds?.[0] ? <>
+    <CardTitleAndValue title={'Construct Lv.'} value={totalLevels}/>
       <Typography variant={'h5'}>Bonuses</Typography>
       <Stack sx={{ mb: 2 }} gap={2} direction={'row'}>
         <Bonus name={'Refinery_Spd'} label={'Ref Spd'}
-               value={totalLevels >= constructionMasteryThresholds?.[0] ? `${Math.floor(totalLevels / 10)}%` : null}/>
+               value={totalLevels >= constructionMasteryThresholds?.[0] ? `${Math.floor(totalLevels / 10)}%` : '0%'}/>
         <Bonus name={'Refinery_Dmg'} label={'Dmg'}
                value={totalLevels >= constructionMasteryThresholds?.[2]
                  ? `${2 * Math.floor((totalLevels - constructionMasteryThresholds?.[2]) / 10)}%`
-                 : null}/>
+                 : '0%'}/>
         <Bonus name={'Refinery_Build_Spd'} label={'Build Spd'}
                value={totalLevels >= constructionMasteryThresholds?.[4]
                  ? `${5 * Math.floor((totalLevels - constructionMasteryThresholds?.[4]) / 10)}%`
-                 : null}/>
-      </Stack></> : null}
-
+                 : '0%'}/>
+      </Stack>
     <Card sx={{ width: 'fit-content' }}>
       <CardContent>
         <Stack gap={1}>

@@ -1,6 +1,6 @@
 import React, { useContext, useMemo } from 'react';
 import { Accordion, AccordionDetails, AccordionSummary, Stack, Typography } from '@mui/material';
-import { getRealDateInMs, prefix } from 'utility/helpers';
+import { getRealDateInMs, getTabs, prefix } from 'utility/helpers';
 import { AppContext } from 'components/common/context/AppProvider';
 import styled from '@emotion/styled';
 import Timer from 'components/common/Timer';
@@ -14,6 +14,7 @@ import Upgrades from '../../../components/account/Misc/Dungeons/Upgrades';
 import Tabber from '../../../components/common/Tabber';
 import RngItems from '../../../components/account/Misc/Dungeons/RngItems';
 import Traits from '../../../components/account/Misc/Dungeons/Traits';
+import { PAGES } from '@components/constants';
 
 const Dungeons = () => {
   const { state } = useContext(AppContext);
@@ -30,7 +31,7 @@ const Dungeons = () => {
       <Stack direction="row" flexWrap={'wrap'} gap={4}>
         <CardTitleAndValue title={'Rank'}>
           <Stack direction={'row'} gap={2}>
-            <CurrencyIcon src={`${prefix}data/Dung_Rank${dungeons?.rank}.png`} alt=""/>
+            <CurrencyIcon src={`${prefix}data/Dung_Rank${dungeons?.rank}.png`} alt="dungeon-icon"/>
             <Stack>
               <Typography>Rank: {dungeons?.rank}</Typography>
               <Typography>Exp: {dungeons?.progress} / {dungeons?.rankReq}</Typography>
@@ -39,19 +40,19 @@ const Dungeons = () => {
         </CardTitleAndValue>
         <CardTitleAndValue title={'Boosted Runs'}>
           <Stack direction={'row'} gap={1}>
-            <img src={`${prefix}etc/boosted-runs.png`} alt=""/>
+            <img src={`${prefix}etc/boosted-runs.png`} alt="boosted-run-icon"/>
             <Typography>{dungeons?.boostedRuns}</Typography>
           </Stack>
         </CardTitleAndValue>
         <CardTitleAndValue title={'Credits'}>
           <Stack direction={'row'} gap={1}>
-            <CurrencyIcon src={`${prefix}data/DungCredits1.png`} alt=""/>
+            <CurrencyIcon src={`${prefix}data/DungCredits1.png`} alt="credits-icon"/>
             {dungeons?.credits}
           </Stack>
         </CardTitleAndValue>
         <CardTitleAndValue title={'Flurbos'}>
           <Stack direction={'row'} gap={1}>
-            <CurrencyIcon src={`${prefix}data/DungCredits2.png`} alt=""/>
+            <CurrencyIcon src={`${prefix}data/DungCredits2.png`} alt="flurbos-icon"/>
             {dungeons?.flurbos}
           </Stack>
         </CardTitleAndValue>
@@ -62,13 +63,15 @@ const Dungeons = () => {
           <AccordionSummary expandIcon={nextHappyHours.length > 1 ? <ExpandMoreIcon/> : null}>
             <Stack direction="row" gap={2}>
               <Typography>Next Happy Hour:</Typography>
-              {nextHappyHours?.length > 0 ?
-                <>
-                  <Timer type={'countdown'} date={nextHappyHours?.[0]} lastUpdated={state?.lastUpdated}/>
-                  <Tooltip title={getRealDateInMs(nextHappyHours?.[0])}>
-                    <InfoIcon fontSize={'small'}/>
-                  </Tooltip>
-                </> : 'waiting for lava to set them'}
+              <Stack direction={'row'} alignItems={'center'} gap={1}>
+                {nextHappyHours?.length > 0 ?
+                  <>
+                    <Timer type={'countdown'} date={nextHappyHours?.[0]} lastUpdated={state?.lastUpdated}/>
+                    <Tooltip title={getRealDateInMs(nextHappyHours?.[0])}>
+                      <InfoIcon fontSize={'small'}/>
+                    </Tooltip>
+                  </> : 'waiting for lava to set them'}
+              </Stack>
             </Stack>
           </AccordionSummary>
           {nextHappyHours.length > 1 ? (
@@ -90,7 +93,7 @@ const Dungeons = () => {
           ) : null}
         </Accordion>
       </Stack>
-      <Tabber tabs={['Passives', 'Rng Items', 'Traits']}>
+      <Tabber tabs={getTabs(PAGES.ACCOUNT.misc.categories, 'dungeons')}>
         <Upgrades {...dungeons}/>
         <RngItems {...dungeons}/>
         <Traits {...dungeons}/>

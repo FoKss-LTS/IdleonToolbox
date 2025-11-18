@@ -12,6 +12,16 @@ export default class MyDocument extends Document {
             rel="stylesheet"
             href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
           />
+          <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+          <meta name="theme-color" content="#141A21" />
+          
+          <link rel="icon" type="image/png" sizes="32x32" href="/data/Coins5.png" />
+          <link rel="icon" type="image/png" sizes="16x16" href="/data/Coins5.png" />
+          <link rel="manifest" href="/site.webmanifest" />
+          
+          {/* Preconnect to important domains */}
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         </Head>
         <body>
         <Main/>
@@ -58,9 +68,9 @@ MyDocument.getInitialProps = async (ctx) => {
   ctx.renderPage = () =>
     originalRenderPage({
       enhanceApp: (App) =>
-        function EnhanceApp(props) {
+        (function EnhanceApp(props) {
           return <App emotionCache={cache} {...props} />;
-        },
+        }),
     });
   /* eslint-enable */
 

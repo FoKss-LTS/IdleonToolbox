@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Box, Divider, Grid, Stack, Typography, useMediaQuery } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
-import { cleanUnderscore, prefix } from 'utility/helpers';
+import { cleanUnderscore, getTabs, prefix } from 'utility/helpers';
 import Tabber from '../../common/Tabber';
+import { PAGES } from '@components/constants';
 
 const StarSigns = ({ starSigns, infiniteStars }) => {
   const [selectedTab, setSelectedTab] = useState(0);
@@ -14,7 +15,7 @@ const StarSigns = ({ starSigns, infiniteStars }) => {
 
   return (
     <>
-      <Tabber tabs={['chronus', 'hydron', 'seraph']} onTabChange={(selected) => setSelectedTab(selected)}>
+      <Tabber queryKey={'nt'} tabs={getTabs(PAGES.ACCOUNT.misc.categories, 'constellations', 'Star Signs')} onTabChange={(selected) => setSelectedTab(selected)}>
         <Stack gap={3}>
           <Grid container>
             <Grid item md={4} sx={{ display: { sm: 'none', md: 'block' } }}>Name</Grid>
@@ -35,7 +36,7 @@ const StarSigns = ({ starSigns, infiniteStars }) => {
                       <>
                         <Typography variant={'body1'} component={'span'}>{cleanUnderscore(indexedStarName)}</Typography>
                         {unlocked && index < infiniteStars ?
-                          <img src={`${prefix}data/SignStarInf${selectedTab}.png`} alt=""/> : null}
+                          <img src={`${prefix}data/SignStarInf${selectedTab}.png`} alt="star-sign-icon"/> : null}
                       </> : null}
                   </Grid>
                   <Grid item sm={7} md={4} display={'flex'} alignItems={'center'} gap={2}>
@@ -46,7 +47,7 @@ const StarSigns = ({ starSigns, infiniteStars }) => {
                         ? bonuses?.map(({
                                           rawName,
                                           bonus
-                                        }) => cleanUnderscore(rawName.replace('{', bonus))).join(', ')
+                                        }) => cleanUnderscore(rawName.replace("{.{", bonus).replace(/{/g, bonus))).join(', ')
                         : cleanUnderscore(description)}
                     </Typography>
                   </Grid>

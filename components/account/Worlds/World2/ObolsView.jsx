@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { cleanUnderscore, prefix } from 'utility/helpers';
 import styled from '@emotion/styled';
 import { Card, CardContent, Stack, Typography } from '@mui/material';
@@ -27,45 +27,62 @@ const getImgName = (name, rawName, shape) => {
   }
 };
 
-const ObolsView = ({ obols, type = 'character', obolStats }) => {
+const shadowColors = {
+  positive: '#04fc30',
+  negative: '#e93a3a',
+  both: '#f3df00'
+}
+
+const ObolsView = ({ obols, type = 'character', obolStats, characters }) => {
+  const totalLevels = useMemo(() => characters?.reduce((res, { level }) => res + (level || 0), 0), [characters]);
   if (!obols) return;
+  const noStats = Object.keys(obols?.stats).length === 0;
   return (
     <ObolsStyled>
       {!obolStats ? <>
-          <Card variant={'outlined'} sx={{ border: type === 'account' ? 'none' : '1px solid rgba(255, 255, 255, 0.12)' }}>
-            <CardContent sx={{ '&:last-child': { padding: type === 'account' ? 0 : 2 } }}>
-              {(type === 'character' ? [5, 9, 12, 16, 23] : [5, 10, 14, 19, 24]).map((endInd, rowNumber, array) => {
-                const startInd = rowNumber === 0 ? 0 : array[rowNumber - 1];
-                const relevantArray = obols?.list?.slice(startInd, endInd);
-                return <div className={'obol-row'} key={startInd + rowNumber}>
-                  {relevantArray?.map((item, index) => {
-                    const { displayName, rawName, levelReq, shape } = item;
-                    const imgName = getImgName(displayName, rawName, shape);
-                    return <div className={'obol-wrapper'} key={rawName + '' + index}>
-                      {levelReq && rawName.includes('Locked') ?
-                        <Typography variant={'caption'} className={'lv-req'}>{levelReq}</Typography> : null}
-                      <Tooltip title={displayName !== 'ERROR' ? <ItemDisplay {...item}/> : ''}>
+          <Wrapper type={type}>
+            {(type === 'character' ? [5, 9, 12, 16, 23] : [5, 10, 14, 19, 24]).map((endInd, rowNumber, array) => {
+              const startInd = rowNumber === 0 ? 0 : array[rowNumber - 1];
+              const relevantArray = obols?.list?.slice(startInd, endInd);
+              return <div className={'obol-row'} key={startInd + rowNumber}>
+                {relevantArray?.map((item, index) => {
+                  const { displayName, rawName, levelReq, shape, rerolled, changes } = item;
+                  const imgName = getImgName(displayName, rawName, shape);
+                  const style = rerolled ? { boxShadow: '0px 0px 5px #d9d282', borderRadius: '50%' } : {};
+                  const isLocked = levelReq && rawName.includes('Locked');
+
+                  return <div className={'obol-wrapper'} key={rawName + '' + index}>
+                    <Tooltip
+                      title={isLocked ? `${levelReq} / ${totalLevels} ` : !displayName ? 'Empty' : displayName !== 'ERROR'
+                        ? <ItemDisplay {...item} allowNegativeValues={false}/>
+                        : ''}>
+                      <span>
+                        {levelReq && rawName.includes('Locked') ?
+                          <Typography variant={'caption'} className={'lv-req'}>{levelReq}</Typography> : null}
                         <img key={displayName + '' + index} src={`${prefix}data/${imgName}.png`}
+                             style={style}
                              alt=""/>
-                      </Tooltip>
-                    </div>;
-                  })}
-                </div>
-              })}
-            </CardContent>
-          </Card>
+                      </span>
+                    </Tooltip>
+                  </div>;
+                })}
+              </div>
+            })}
+          </Wrapper>
         </> :
         <Card variant={'outlined'}>
           <CardContent>
-            <Stack gap={2} mt={2} ml={type === 'character' ? 1 : 7}>
-              {Object.entries(obols?.stats)?.map(([stat, value], index) => {
-                return <Stat key={`${stat}-${index}`}
-                             {...({
-                               statName: cleanUnderscore(stat),
-                               personalBonus: value?.personalBonus,
-                               familyBonus: value?.familyBonus
-                             })} />;
-              })}
+            <Stack gap={2} mt={noStats ? 0 : 2} ml={type === 'character' ? 1 : 7}>
+              {noStats
+                ? <Typography variant={'body2'}>No stats from obols</Typography>
+                : Object.entries(obols?.stats)?.map(([stat, value], index) => {
+                  return <Stat key={`${stat}-${index}`}
+                               {...({
+                                 statName: cleanUnderscore(stat),
+                                 personalBonus: value?.personalBonus,
+                                 familyBonus: value?.familyBonus
+                               })} />;
+                })}
             </Stack>
           </CardContent>
         </Card>}
@@ -87,6 +104,18 @@ const Stat = ({ statName, personalBonus, familyBonus }) => {
   </Stack>
 }
 
+const Wrapper = ({ type, children }) => {
+  if (type === 'account') {
+    return <div>{children}</div>
+  }
+  return <Card variant={'outlined'}
+               sx={{ border: type === 'account' ? 'none' : '1px solid rgba(255, 255, 255, 0.12)' }}>
+    <CardContent sx={{ '&:last-child': { padding: type === 'account' ? 0 : 2 } }}>
+      {children}
+    </CardContent>
+  </Card>
+}
+
 const ObolsStyled = styled.div`
   max-width: 400px;
 
@@ -97,6 +126,7 @@ const ObolsStyled = styled.div`
   .obol-wrapper {
     position: relative;
     display: inline;
+    margin-right: 5px;
 
     .lv-req {
       position: absolute;

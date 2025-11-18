@@ -4,6 +4,388 @@ import React from 'react';
 /* eslint-disable react/jsx-key */
 export const patchNotes = [
   {
+    'ver': '3.3.10',
+    'gameVer': '2.0.43',
+    'date': '28/09/2025',
+    'features': [
+      'Updated the website with version 2.0.43 data and assets',
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.3.10',
+    'gameVer': '2.0.41',
+    'date': '28/09/2025',
+    'features': [
+      'Added a class-specific "Wrong Items" alert to notify when class-specific form items are used outside their form.',
+      'Added a class-specific "Better Weapon" alert to notify when a better form-specific weapon is available in the inventory.',
+      'Added navigation links on chests in the storage page to open their corresponding wiki page.',
+      'Added time estimation for resource costs in the upgrade optimizer pages, based on resources per hour.',
+      'Added an indicator on character cards in the dashboard to show whether they are currently in a form (Wraith, Tempest, or Arcanist).',
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.3.9',
+    'gameVer': '2.0.41',
+    'date': '19/08/2025',
+    'features': [
+      'Bubbles page visual update',
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.3.8',
+    'gameVer': '2.0.41',
+    'date': '11/07/2025',
+    'features': [
+      'Added summoning stones',
+      'Added missing classes for builds page',
+    ],
+    'fixes': [
+      'Fixed "only affordable skills" in optimizers page',
+      'Fixed bits breakdown with missing items',
+
+    ]
+  },
+  {
+    'ver': '3.3.7',
+    'gameVer': '2.0.41',
+    'date': '06/07/2025',
+    'features': [
+      'Updated the website with version 2.0.41 data and assets'
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.3.6',
+    'gameVer': '2.0.40',
+    'date': '24/06/2025',
+    'features': [
+      'Updated the website with version 2.0.40 data and assets',
+      'Added tesseract page under Account -> Class Specific -> Tesseract',
+      'Added total tesseract upgrades, total tachyons leaderboards',
+      'Applied tesseract bonuses across the website'
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.3.5',
+    'gameVer': '2.0.38',
+    'date': '20/06/2025',
+    'features': [
+      'Added statistics page for various game mechanics'
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.3.4',
+    'gameVer': '2.0.37',
+    'date': '31/05/2025',
+    'features': [
+      'Updated the website with version 2.0.37 data and assets',
+      'Added Armor Smithy page under Account -> World 3',
+      'Added Emperor page under Account -> World 6'
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.3.3',
+    'gameVer': '2.0.36',
+    'date': '10/05/2025',
+    'features': [
+      'Added initial calculation for class exp multi (might still not be 100% accurate)',
+      'All sampling setups in Sampling Companion are now ready to use (Afk Fighting, Chopping, Mining, Catching, Fishing, Trapping Eff)'
+    ],
+    'fixes': [
+      'Fixed shrine bonus calculation and display',
+      'Hiding empty section after a search in Compass -> Upgrades',
+      'Fixed sigil speed calculations',
+      'Fixed opal chance in bravery cavern',
+      'Fixed extra dust calculation in compass page',
+      'Fixed Pets alerts in the dashboard',
+      'Fixed farming alerts in dashboard'
+    ]
+  },
+  {
+    'ver': '3.3.2',
+    'gameVer': '2.0.36',
+    'date': '30/04/2025',
+    'features': [
+      'Updated the website with version 2.0.36 data and assets'
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.3.1',
+    'gameVer': '2.0.36',
+    'date': '27/04/2025',
+    'features': [
+      'Default display for ASC -> Drops is X / hr (total amount will be found in the tooltip)',
+      'Added a new experimental page - Sampling Companion - which helps you track BIS items for a specific sampling setup (currently only AFK Fighting) - let me know what you think'
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.3.0',
+    'gameVer': '2.0.36',
+    'date': '26/04/2025',
+    'features': [
+      'Added "Sort by type" option in Compass -> Upgrades',
+      'Added "Hide future abominations" to hide abominations images in Compass -> Abominations',
+      'Added "Show drops" to see which monster drops tempest bow/ring in Compass -> Medallions',
+      'Updated the medallions list to be accurate as I\'m aware'
+    ],
+    'fixes': [
+      'Fixed a bug with contributing exp to shrine'
+    ]
+  },
+  {
+    'ver': '3.3.0',
+    'gameVer': '2.0.36',
+    'date': '25/04/2025',
+    'features': [
+      'Updated the website with version 2.0.36 data and assets',
+      'Added Compass page under Account -> Misc containing Upgrades, abominations, portals and medallions',
+      'Added exalted stamps indication + bonus'
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.2.99',
+    'gameVer': '2.0.35',
+    'date': '19/04/2025',
+    'features': [
+      'Add NBLB indicator in stamps page',
+      'Added "sort by time" option for study page',
+      'Added breakdown for rupie value, crop evolution, bell exp rate, villager exp (separated to Base / Additive / Multiplicative sections)'
+    ],
+    'fixes': [
+      'Small ui update for leaderboards',
+      'Changed the order of tabs in Pets  page (Showing Shinies tab first)',
+      'Fixed foraging speed ',
+      'Fixed a bug where Land Rank was showing even if it is locked'
+    ]
+  },
+  {
+    'ver': '3.2.98',
+    'gameVer': '2.0.35',
+    'date': '11/04/2025',
+    'features': [
+      'Revamped the breeding → pets page to include breedability',
+      'Added breedability level alerts to the dashboard',
+      'Added jars alerts to the dashboard',
+      'Updated the companions page to display companions by category',
+      'Added a tasks unlock page',
+      'Added the ability to see exact cog values on the construction page',
+      'Added a den score leaderboard',
+      'Added "cost to max" on non-maxed items'
+    ],
+    'fixes': [
+      'Fixed tome score calculations',
+      'Fixed the missing Axolotl image',
+      'Fixed the "weapon power" display for trapping and summoning',
+      'Fixed missing values for owl upgrades',
+      'Fixed a bug with calculating shiny progress in ASC',
+      'Fixed the missing value for the Seraph Cosmos star sign',
+      'Fixed villagers breakdown values',
+      'Fixed post office total points calculations'
+    ]
+  },
+  {
+    'ver': '3.2.97',
+    'gameVer': '2.0.35',
+    'date': '01/04/2025',
+    'features': [
+      'Updated the website with version 2.0.35 data and assets',
+      'Added event-shop page under account -> misc',
+      'Leaderboards - you\'re now able to search your account\'s rank even if you\'re not top 10 (or top 250!)',
+      'Added bean trade alert to the dashboard',
+      'Fixed display of white and dark rupies',
+      'Fixed villagers per hour calculation',
+      'Fixed gambit points calculation',
+      'Fixed printer companion calculation',
+      'Fixed small bug in refinery calculation',
+      'Fixed bravery damage',
+      'Fixed endless bonuses',
+      'Fixed bug with timers in atom colliders'
+    ],
+    'fixes': [
+      'Updated drop rate calculation with the new companion, monument, measurement bonuses',
+      'Fixed vote ballot multi bonus'
+    ]
+  },
+  {
+    'ver': '3.2.96',
+    'gameVer': '2.0.34',
+    'date': '22/03/2025',
+    'features': [
+      'Updated the website with version 2.0.34 data and assets',
+      'Added wisdom content page and timer to dashboard',
+      'Added an alert when villager is ready to be leveled up',
+      'Added equinox fill rate breakdown to equinox page'
+    ],
+    'fixes': [
+      'Updated drop rate calculation with the new companion, monument, measurement bonuses',
+      'Fixed vote ballot multi bonus'
+    ]
+  },
+  {
+    'ver': '3.2.95',
+    'gameVer': '2.0.32',
+    'date': '21/03/2025',
+    'features': [
+      'Added filtering to stamps page',
+      'Added slab bonuses to slab page',
+      'Added total levels to summoning upgrades page',
+      'Added kills per hour / day to ASC'
+    ],
+    'fixes': [
+      'Fixed equinox fill rate calculation',
+      'Fixed indication of missing artifacts in artifacts page'
+    ]
+  },
+  {
+    'ver': '3.2.94',
+    'gameVer': '2.0.32',
+    'date': '16/03/2025',
+    'features': [
+      'Updated the website with version 2.0.32 data',
+      'Added Gambit page and applied gambit bonuses across the website',
+      'Added summoners doublers indication in summoning upgrades page'
+    ],
+    'fixes': [
+      'Fixed equinox rate calc',
+      'Fixed villager exp per hour calc'
+    ]
+  },
+  {
+    'ver': '3.2.93',
+    'gameVer': '2.0.31',
+    'date': '14/03/2025',
+    'features': [
+      'Added steam login 🚀',
+      'Updated the website with version 2.0.31 data',
+      'Added The Jars, Evertree, Wisdom*, Gambit* and The Temple pages',
+      'Added the new companions'
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.2.92',
+    'gameVer': '2.0.30',
+    'date': '08/03/2025',
+    'features': [
+      'Renamed "Active Drop Calculator" to "Active Stuff Calculator" as it now tracks coins, kills, exp, cards, shiny progress (for BM) and drops!'
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.2.91',
+    'gameVer': '2.0.30',
+    'date': '06/03/2025',
+    'features': [
+      'Added active drop calculator',
+      'You can now exclude copper, oak, spore cap, fly and goldfish from the printer atom alerts',
+      'Added an alert for dna splicer tool (based on level req)'
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.2.91',
+    'gameVer': '2.0.30',
+    'date': '04/03/2025',
+    'features': [
+      'Search – You can now search for tabs inside pages as well!',
+      'Added an alert for ready-to-upgrade meals.',
+      'Added a level threshold input to the Bubbles page.',
+      'Added a free companion claim alert.',
+      'Increased the number of endless fights you can view to 200 (up from 100).',
+      'Changed the unspent anvil points alert to use a threshold instead of a simple checkbox.'
+    ],
+    'fixes': [
+      'Fixed the "skilling card" alert so it no longer appears on Death Bringer when the Wrath skill is active.',
+      'Fixed the Equinox timer tooltip.'
+    ]
+  },
+  {
+    'ver': '3.2.90',
+    'gameVer': '2.0.30',
+    'date': '24/02/2025',
+    'features': [`Updated the website with version 2.0.30`],
+    'fixes': [
+      'Fixed cash multi calculation (missing multikill as its super hard to calculate)'
+    ]
+  },
+  {
+    'ver': '3.2.89',
+    'gameVer': '2.0.29',
+    'date': '18/02/2025',
+    'features': [],
+    'fixes': [
+      'Fixed cash multi calculation + breakdown',
+      'Fixed slab bonuses calculations',
+      'Fixed Roo and Owl feather/fish generation rate',
+      'Fixed Sailing speed'
+    ]
+  },
+  {
+    'ver': '3.2.88',
+    'gameVer': '2.0.29',
+    'date': '08/02/2025',
+    'features': [`Updated the website with version 2.0.29 data, assets + new vault upgrade bonuses`],
+    'fixes': []
+  },
+  {
+    'ver': '3.2.87',
+    'gameVer': '2.0.27',
+    'date': '08/02/2025',
+    'features': [`Added a workaround for steam login (click "Login" -> "Steam Workaround")`],
+    'fixes': ['Drop rate calculations']
+  },
+  {
+    'ver': '3.2.86',
+    'gameVer': '2.0.27',
+    'date': '04/02/2025',
+    'features': ['Updated the website with version 2.0.27 data, assets and upgrade vault page'],
+    'fixes': []
+  },
+  {
+    'ver': '3.2.86',
+    'gameVer': '2.0.26',
+    'date': '23/01/2025',
+    'features': [
+      'Added "wow" apocalypse to apocalypses pages',
+      'Added grimoire page',
+      'Implemented (hopefully) all grimore bonuses across the site',
+      'Added 100 and 110 breakpoints to meals order',
+      'Added an option to stamps alert to only show gilded stamp when stamp reducer is 0'
+    ],
+    'fixes': [
+      'Fixed equinox timer in the dashboard page',
+      'Fixed star talents order',
+      'Fixed a bug where pocket divinity wasn\'t taken into account for talent added levels'
+    ]
+  },
+  {
+    'ver': '3.2.85',
+    'gameVer': '2.0.26',
+    'date': '19/01/2025',
+    'features': [
+      'Updated the website with version 2.0.26 data and assets'
+    ],
+    'fixes': []
+  },
+  {
+    'ver': '3.2.84',
+    'gameVer': '2.0.25',
+    'date': '16/12/2024',
+    'features': [
+      'Updated the website with version 2.0.25 data and assets'
+    ],
+    'fixes': []
+  },
+  {
     'ver': '3.2.83',
     'gameVer': '2.0.22',
     'date': '28/11/2024',
@@ -13,7 +395,8 @@ export const patchNotes = [
     ],
     'fixes': [
       'Fix an issue with import dashboard settings',
-      'Fixed an issue with missing images on Summoning -> Battles page',
+      'Fixed an issue with missing images' +
+      ' on Summoning -> Battles page',
       'Fixed a calculation error for summoning bonuses'
     ]
   },

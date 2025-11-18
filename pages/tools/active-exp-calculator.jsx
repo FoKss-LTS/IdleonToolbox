@@ -6,18 +6,11 @@ import MenuItem from '@mui/material/MenuItem';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import IconButton from '@mui/material/IconButton';
 import { AppContext } from 'components/common/context/AppProvider';
-import { CountdownCircleTimer } from 'react-countdown-circle-timer';
 import { NextSeo } from 'next-seo';
 import Box from '@mui/material/Box';
+import CircleTimer from '@components/common/CircleTimer';
+import { getExpToLevel } from '@parsers/misc/activeCalculator';
 
-const getExpToLevel = (character, targetLevel) => {
-  let exp = 0;
-  for (let i = character?.level; i < targetLevel; i++) {
-    exp += (15 + Math.pow(i, 1.9) + 11 * i) * Math.pow(1.208 - Math.min(0.164, (0.215 * i) / (i + 100)), i) - 15;
-  }
-  exp -= character?.exp;
-  return exp;
-}
 const countdown = 10;
 const ActiveXpCalculator = () => {
   const { state } = useContext(AppContext);
@@ -71,20 +64,6 @@ const ActiveXpCalculator = () => {
     return { expFarmed, expPerMinute, expPerHour: expPerMinute * 60, timeLeft: splitTime(timeLeft) };
   }
 
-  const renderTime = ({ remainingTime }) => {
-    if (remainingTime === 0) {
-      return <div className="timer">Done!</div>;
-    }
-
-    return (
-      <div className="timer">
-        <div className="text">Remaining</div>
-        <div className="value">{remainingTime}</div>
-        <div className="text">seconds</div>
-      </div>
-    );
-  };
-
   const onEndPercentageChange = (value) => {
     setEndExp(value);
     const res = calcTimeToLevelUp(startExp, value);
@@ -120,11 +99,11 @@ const ActiveXpCalculator = () => {
       {selectedChar ? <Stack gap={5} flexWrap={'wrap'} sx={{ flexDirection: { xs: 'column-reverse', sm: 'row' } }}>
         <div className={'character-wrapper'}>
           <Stack direction={'row'} alignItems={'center'} flexWrap={'wrap'}>
-            <StyledTextField id="select" label="Character" value={selectedChar || {}}
+            <StyledTextField size={'small'} id="select" label="Character" value={selectedChar || {}}
                              onChange={(e) => setSelectedChar(e.target.value)} select>
               {charactersList?.map((character, index) => {
                 return <StyledMenuItem key={character?.name + index} value={character}>
-                  <img src={`${prefix}data/ClassIcons${character?.classIndex}.png`} alt=""/>
+                  <img src={`${prefix}data/ClassIcons${character?.classIndex}.png`} alt="class-icon" width={32} height={32}/>
                   {character?.name}
                 </StyledMenuItem>
               })}
@@ -134,16 +113,19 @@ const ActiveXpCalculator = () => {
             </IconButton>
           </Stack>
           <StyledTextField
+            size={'small'}
             label={'Start Percentage'}
             value={startExp || 0}
             type={'number'}
             onChange={(e) => onStartPercentageChange(e.target.value)}/>
           <StyledTextField
+            size={'small'}
             label={'End Percentage'}
             value={endExp || 0}
             type={'number'}
             onChange={(e) => onEndPercentageChange(e.target.value)}/>
           <StyledTextField
+            size={'small'}
             label={'Goal Level'}
             value={goalLevel || 0}
             type={'number'}
@@ -162,14 +144,7 @@ const ActiveXpCalculator = () => {
             </div> : null}
           </div>
         </div>
-        <CountdownCircleTimer
-          key={start}
-          isPlaying={isPlaying}
-          duration={600}
-          colors={[['#15aee1']]}
-        >
-          {renderTime}
-        </CountdownCircleTimer>
+        <CircleTimer key={start} duration={600} isPlaying={isPlaying}/>
         <Box sx={{ width: 200 }}>
           <Typography variant={'caption'}>* Start a 10-minute timer. After the timer ends, you will receive a result
             indicating the progress you've made towards reaching your goal level</Typography>

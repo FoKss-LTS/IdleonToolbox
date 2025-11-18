@@ -2,6 +2,7 @@ import { getStampsBonusByEffect } from './stamps';
 import { round, tryToParse } from '../utility/helpers';
 import { getCardBonusByEffect } from './cards';
 import {
+  CLASSES,
   getCharacterByHighestTalent,
   getHighestTalentByClass,
   getTalentBonus,
@@ -83,8 +84,8 @@ export const getMaxCharge = (character, account) => {
   const postOfficeBonus = getPostOfficeBonus(character?.postOffice, 'Crate_of_the_Creator', 1);
   const wizardTalentBonus = getTalentBonusIfActive(character?.activeBuffs, 'CHARGE_SYPHON', 'y');
   const stampBonus = getStampsBonusByEffect(account, 'Max_Charge', character);
-  const bubbleBonus = getBubbleBonus(account?.alchemy?.bubbles, 'high-iq', 'GOSPEL_LEADER', false, mainStat === 'wisdom');
-  const activeBubbleBonus = getActiveBubbleBonus(character?.equippedBubbles, 'high-iq', 'CALL_ME_POPE', account);
+  const bubbleBonus = getBubbleBonus(account, 'GOSPEL_LEADER', false, mainStat === 'wisdom');
+  const activeBubbleBonus = getActiveBubbleBonus(character?.equippedBubbles, 'CALL_ME_POPE', account);
   const skullSpeed = character?.tools?.[5]?.rawName !== 'Blank' ? character?.tools?.[5]?.lvReqToCraft : 0;
   return Math.floor(Math.max(50, cardBonus
     + postOfficeBonus + (wizardTalentBonus + (stampBonus
@@ -96,8 +97,8 @@ export const getChargeRate = (character, account) => {
   const skullSpeed = character?.tools?.[5]?.rawName !== 'Blank' ? character?.tools?.[5]?.Speed : 0;
   const cardBonus = getCardBonusByEffect(account?.cards, 'Charge_Rate');
   const stampBonus = getStampsBonusByEffect(account, 'Charge_Rate_per_Hour', character);
-  const wizardTalentBonus = getTalentBonus(character?.talents, 2, 'NEARBY_OUTLET');
-  const activeBubbleBonus = getActiveBubbleBonus(character?.equippedBubbles, 'high-iq', 'CALL_ME_POPE', account)
+  const wizardTalentBonus = getTalentBonus(character?.flatTalents, 'NEARBY_OUTLET');
+  const activeBubbleBonus = getActiveBubbleBonus(character?.equippedBubbles, 'CALL_ME_POPE', account)
   if (skullSpeed < 3) {
     return 6 / Math.max(5.7 + Math.pow(4 - skullSpeed, 2.2) - (.9 * Math.pow(character?.skillsInfo?.worship?.level, .5) /
         (Math.pow(character?.skillsInfo?.worship?.level, .5) + 250) + .6 * character?.skillsInfo?.worship?.level /
@@ -136,8 +137,8 @@ export const getClosestWorshiper = (characters) => {
 export const getChargeWithSyphon = (characters) => {
   const totalCharge = characters?.reduce((res, { worship }) => res + (worship?.currentCharge || 0), 0);
   const totalChargeRate = characters?.reduce((res, { worship }) => res + (worship?.chargeRate || 0), 0);
-  const bestChargeSyphon = getHighestTalentByClass(characters, 2, 'Wizard', 'CHARGE_SYPHON', 'y') || 0;
-  const bestWizard = getCharacterByHighestTalent(characters, 2, 'Wizard', 'CHARGE_SYPHON', 'y');
+  const bestChargeSyphon = getHighestTalentByClass(characters, CLASSES.Wizard, 'CHARGE_SYPHON', 'y') || 0;
+  const bestWizard = getCharacterByHighestTalent(characters, CLASSES.Wizard, 'CHARGE_SYPHON', 'y');
 
   return {
     bestWizard,

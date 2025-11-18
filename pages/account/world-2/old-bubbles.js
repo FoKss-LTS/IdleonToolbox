@@ -24,7 +24,8 @@ import {
   getBubbleBonus,
   getMaxCauldron,
   getUpgradeableBubbles,
-  getVialsBonusByStat
+  getVialsBonusByStat,
+  isPrismaBubble
 } from '@parsers/alchemy';
 import Box from '@mui/material/Box';
 import Tabber from '../../../components/common/Tabber';
@@ -34,6 +35,8 @@ import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
 import Link from '@mui/material/Link';
 import { useRouter } from 'next/router';
 import MenuItem from '@mui/material/MenuItem';
+import { getArcadeBonus } from '@parsers/arcade';
+import { getTesseractBonus } from '@parsers/tesseract';
 
 const bargainOptions = [0, 25, 43.75, 57.81, 68.36, 76.27, 82.20, 86.65, 90];
 const Bubbles = () => {
@@ -83,14 +86,13 @@ const Bubbles = () => {
                              shopBargainBought, smrtAchievement, multiBubble) => {
     if (isLiquid) {
       return baseCost + Math.floor(bubbleLvl / 20);
-    }
-    else {
+    } else {
       const first = bubbleIndex < 15 ?
         baseCost * Math.pow(1.35 - (0.3 * bubbleLvl) / (50 + bubbleLvl), bubbleLvl) :
         baseCost * Math.pow(1.37 - (0.28 * bubbleLvl) / (60 + bubbleLvl), bubbleLvl);
       const cauldronCostReduxBoost = Math.max(0.1, 1 - ((Math.round(10 * growth('decay', cauldronCostLvl, 90, 100, false)) / 10)) / 100);
       const barleyBrewVialBonus = getVialsBonusByStat(state?.account?.alchemy?.vials, 'AlchBubbleCost');
-      const undevelopedBubbleBonus = getBubbleBonus(state?.account?.alchemy?.bubbles, 'kazam', 'UNDEVELOPED_COSTS', false);
+      const undevelopedBubbleBonus = getBubbleBonus(state?.account, 'UNDEVELOPED_COSTS', false);
       const bubbleBargainBoost = Math.max(0.05, 1 - (growth('decay', lastBubbleLvl, 40, 12, false) / 100) *
         growth('decayMulti', classMultiplierLvl, 2, 50, false) *
         growth('decayMulti', multiBubble, 1.4, 30, false));
@@ -122,6 +124,7 @@ const Bubbles = () => {
 
   const getAccumulatedBubbleCost = (index, level, baseCost, isLiquid, cauldronName) => {
     const levelDiff = (bubblesGoals?.[cauldronName]?.[index] ?? 0) - level;
+    if (isNaN(levelDiff)) return { singleLevelCost: 0, total: 0 };
     if (levelDiff <= 0) {
       const cost = calculateMaterialCost(level, baseCost, isLiquid, cauldronName, index);
       return { singleLevelCost: cost, total: cost };
@@ -145,7 +148,7 @@ const Bubbles = () => {
   const accumulatedCost = useCallback((index, level, baseCost, isLiquid, cauldronName) => getAccumulatedBubbleCost(index, level, baseCost, isLiquid, cauldronName), [bubblesGoals,
     bargainTag, classDiscount]);
 
-  const upgradeableBubbles = useMemo(() => getUpgradeableBubbles(state?.account), [state?.account]);
+  const upgradeableBubbles = useMemo(() => getUpgradeableBubbles(state?.account, state?.characters), [state?.account]);
 
   const getMaxBonus = (func, x1) => {
     if (!func?.includes('decay')) return null;
@@ -231,19 +234,25 @@ const Bubbles = () => {
         <Stack direction={'row'} flexWrap={'wrap'} gap={3} justifyContent={'center'}>
           {bubbles?.map((bubble, index) => {
             if (index > 29) return null;
-            const { level, itemReq, rawName, bubbleName, func, x1, x2, cauldron } = bubble;
+            const { level, itemReq, rawName, bubbleName, func, x1, x2, cauldron, bubbleIndex } = bubble;
+            const isPrisma = isPrismaBubble(state?.account, bubbleIndex);
             const goalLevel = bubblesGoals?.[cauldron]?.[index] ? bubblesGoals?.[cauldron]?.[index] < level
               ? level
               : bubblesGoals?.[cauldron]?.[index] : level;
-            const goalBonus = growth(func, goalLevel, x1, x2, true);
-            const bubbleMaxBonus = getMaxBonus(func, x1);
+            const arcadeBonus = getArcadeBonus(state?.account?.arcade?.shop, 'Prisma_Bonuses')?.bonus;
+            const tesseractBonus = getTesseractBonus(state?.account, 45)
+            const prismaMulti = isPrisma
+              ? Math.min(3, 2 + (tesseractBonus + arcadeBonus) / 100)
+              : 1;
+            const goalBonus = Math.floor(growth(func, goalLevel, x1, x2, true) * (isPrisma ? prismaMulti : 1));
+            const bubbleMaxBonus = isPrisma ? getMaxBonus(func, x1) * prismaMulti : getMaxBonus(func, x1);
             const effectHardCapPercent = goalLevel / (goalLevel + x2) * 100;
             let thresholdObj;
             if (bubbleMaxBonus) {
               const thresholdLevelNeeded = effThreshold / (100 - effThreshold) * x2;
               thresholdObj = {
                 thresholdMissingLevels: thresholdLevelNeeded - goalLevel,
-                thresholdBonus: growth(func, thresholdLevelNeeded, x1, x2, true),
+                thresholdBonus: growth(func, thresholdLevelNeeded, x1, x2, true) * prismaMulti,
                 effectHardCapPercent: thresholdLevelNeeded / (thresholdLevelNeeded + x2) * 100
               }
             }
@@ -274,6 +283,8 @@ const Bubbles = () => {
                                                               bubble={bubble}
                                                               goalLevel={goalLevel}/> :
                           <BubbleTooltip {...{ ...bubble, goalLevel }}/>}>
+                        {isPrisma ? <img style={{ position: 'absolute', width: 48, height: 48 }}
+                                         src={`${prefix}data/aUpgradesGlow${selectedTab}.png`}/> : null}
                         <BubbleIcon width={48} height={48}
                                     level={level}
                                     src={`${prefix}data/${rawName}.png`}
@@ -388,7 +399,7 @@ const AdditionalInfo = ({
             amount = account?.summoning?.essences?.[essences?.[rawName]];
           }
         } else {
-          amount = account?.storage?.find(({ rawName: storageRawName }) => (storageRawName === rawName))?.amount;
+          amount = account?.storage?.list?.find(({ rawName: storageRawName }) => (storageRawName === rawName))?.amount;
         }
         return <Stack direction={'row'} key={`${rawName}-${name}-${itemIndex}`} gap={3}>
           {atomCost ? <Stack gap={2} alignItems={'center'}>
@@ -500,23 +511,25 @@ const BubbleTooltip = ({ goalLevel, bubbleName, desc, func, x1, x2, level }) => 
   const bonus = growth(func, level, x1, x2, true);
   const goalBonus = growth(func, goalLevel, x1, x2, true);
   return <>
-    <Typography fontWeight={'bold'} variant={'h6'}>{cleanUnderscore(bubbleName)}</Typography>
+    <Typography fontWeight={'bold'}
+                variant={'h6'}>{cleanUnderscore(bubbleName.toLowerCase().capitalizeAll())}</Typography>
+    <Divider sx={{ my: 1 }}/>
     <Typography variant={'body1'}>{cleanUnderscore(desc.replace(/{/, bonus))}</Typography>
     {level !== goalLevel ? <Typography sx={{ color: level > 0 ? 'multi' : '' }}
                                        variant={'body1'}>Goal:
       +{goalBonus}</Typography> : null}
-  </>
+  </>;
 }
 
 const FutureBubblesTooltip = () => {
-  const arr = new Array(15).fill(25).map((bubbleIndex, index) => getMaxCauldron(bubbleIndex + index)).toChunks(5);
+  const arr = new Array(15).fill(30).map((bubbleIndex, index) => getMaxCauldron(bubbleIndex + index)).toChunks(5);
   return <Stack gap={2}>
     {arr.map((chunk, index) => {
       return <Stack key={index}>
         <Typography sx={{ fontWeight: 'bold' }}>World {6 + index}</Typography>
         <Stack>
           {chunk.map((i, bIndex) => {
-            const currentIndex = 26 + (index * 5) + bIndex;
+            const currentIndex = 31 + (index * 5) + bIndex;
             return <Typography key={i}>{currentIndex} - {notateNumber(i)}</Typography>
           })}
         </Stack>

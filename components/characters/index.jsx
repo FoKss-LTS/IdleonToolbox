@@ -62,8 +62,8 @@ const Character = ({
                         lastUpdated={lastUpdated}/>,
       filter: ['Stats', 'Activity']
     },
-    { component: <ObolsView obols={obols}/>, filter: 'Obols' },
-    { component: <ObolsView obols={obols} obolStats/>, filter: 'Obols Stats' },
+    { component: <ObolsView obols={obols} characters={characters}/>, filter: 'Obols' },
+    { component: <ObolsView obols={obols} obolStats characters={characters}/>, filter: 'Obols Stats' },
     { component: <Bags {...{ bags: invBagsUsed, capBags: carryCapBags }} />, filter: 'Bags' },
     {
       component: <Talents {...character}
@@ -74,7 +74,7 @@ const Character = ({
     },
     { component: <EquippedCards {...character}/>, filter: 'Cards' },
     {
-      component: <Skills skills={skillsInfo} charName={name} showSkillsRankOneOnly={showSkillsRankOneOnly}/>,
+      component: <Skills skills={skillsInfo} account={account} characters={characters} character={character} charName={name} showSkillsRankOneOnly={showSkillsRankOneOnly}/>,
       filter: 'Skills'
     },
     { component: <Prayers prayers={activePrayers}/>, filter: 'Prayers' },
@@ -87,7 +87,8 @@ const Character = ({
     { component: <PostOffice {...postOffice} showUnmaxedBoxesOnly={showUnmaxedBoxesOnly}/>, filter: 'Post Office' },
     {
       component: <Chips playerLabLevel={skillsInfo?.laboratory?.level ?? 0}
-                        playerChips={account?.lab?.playersChips?.[playerId]} characters={characters}/>, filter: 'Chips'
+                        playerChips={account?.lab?.playersChips?.[playerId]} characters={characters}
+                        charactersPage/>, filter: 'Chips'
     },
     {
       component: <Equipment {...{ charName: name, equipment, tools, food, character, account }} />,
@@ -116,7 +117,8 @@ const Character = ({
                 {name} ({level})
               </Typography>
               {trophy ?
-                <TrophyIcon src={`${prefix}data/${trophy}disp.png`} style={{ width: 102, height: 19 }} alt=""/> : null}
+                <TrophyIcon src={`${prefix}data/${trophy}disp.png`} style={{ width: 102, height: 19 }} alt=""/> : <Box
+                  sx={{ width: 102, height: 19 }}></Box>}
             </Stack>
           </Stack>
           <Stack direction={'row'} flexWrap={'wrap'} gap={4}>

@@ -6,19 +6,20 @@ import {
   getHighestLevelOfClass,
   isMasteryBonusUnlocked
 } from './misc';
-import { getHighestTalentByClass, mainStatMap } from './talents';
+import { CLASSES, getHighestTalentByClass, mainStatMap } from './talents';
 import { getBubbleBonus, getSigilBonus, getVialsBonusByStat } from './alchemy';
 import { getCardBonusByEffect } from './cards';
 import { getStampsBonusByEffect } from './stamps';
 import { getMealsBonusByEffectOrStat } from './cooking';
 import { getGodBlessingBonus, getMinorDivinityBonus } from './divinity';
 import { getStatueBonus } from './statues';
-import { isSuperbitUnlocked } from './gaming';
-import { getJewelBonus, getLabBonus } from './lab';
+import { getLabBonus } from './lab';
 import { getShinyBonus } from './breeding';
 import { getFamilyBonusBonus } from './family';
 import LavaRand from '../utility/lavaRand';
 import { getAchievementStatus } from './achievements';
+import { getVoteBonus } from '@parsers/world-2/voteBallot';
+import { isPast } from 'date-fns';
 
 export const getSailing = (idleonData, artifactsList, charactersData, account, serverVars, charactersLevels) => {
   const sailingRaw = tryToParse(idleonData?.Sailing) || idleonData?.Sailing;
@@ -87,12 +88,14 @@ const getFutureTrades = ({ boats } = {}, islands, lootPileList, artifactsList, a
     const lootIndex = Math.min(30, Math.ceil(2 * random * unlockedIslands));
     const lootItemCost = getLootItemCost(lootPileList?.[lootIndex], firstBoatLootValue);
     const closest = new Date(Math.floor((seed + i) * 21600 * 1000));
-    trades.push({
-      ...lootPileList?.[lootIndex],
-      date: closest,
-      moneyValue: getMoneyValue(lootItemCost, lootIndex, emeraldRelic),
-      lootItemCost
-    });
+    if (!isPast(closest)) {
+      trades.push({
+        ...lootPileList?.[lootIndex],
+        date: closest,
+        moneyValue: getMoneyValue(lootItemCost, lootIndex, emeraldRelic),
+        lootItemCost
+      });
+    }
   }
   return trades;
 }
@@ -135,7 +138,8 @@ const getArtifactChance = (chest, artifactsList, serverVars) => {
     const artifact = artifactsList[artifactsStartIndex + i];
     if (!artifact) {
       baseMath = startingIndex * (1 - chance / artifact?.baseFindChance);
-    } else {
+    }
+    else {
       if (artifact?.acquired === 1) {
         baseMath = startingIndex * (1 - chance / getAncientChances(islandIndex, serverVars));
         startingIndex = baseMath;
@@ -194,8 +198,8 @@ const getRareTreasureChance = () => {
 const getCaptainsAndBoats = (sailingRaw, captainsRaw, boatsRaw, account, characters, charactersLevels, artifactsList, lootPileList) => {
   const captainsUnlocked = sailingRaw?.[2]?.[0] || 0;
   const boatsUnlocked = sailingRaw?.[2]?.[1] || 0;
-  const highestLevelSiegeBreaker = getHighestLevelOfClass(charactersLevels, 'Siege_Breaker') ?? 0;
-  const theFamilyGuy = getHighestTalentByClass(characters, 3, 'Siege_Breaker', 'THE_FAMILY_GUY') ?? 0;
+  const highestLevelSiegeBreaker = getHighestLevelOfClass(charactersLevels, CLASSES.Siege_Breaker) ?? 0;
+  const theFamilyGuy = getHighestTalentByClass(characters, CLASSES.Siege_Breaker, 'THE_FAMILY_GUY') ?? 0;
   const familyBonus = getFamilyBonusBonus(classFamilyBonuses, 'FASTER_MINIMUM_BOAT_TRAVEL_TIME', highestLevelSiegeBreaker);
   const shinyBonus = getShinyBonus(account?.breeding?.pets, 'Lower_Minimum_Travel_Time_for_Sailing');
   const amplifiedFamilyBonus = familyBonus * (1 + theFamilyGuy / 100);
@@ -257,35 +261,32 @@ const getBaseSpeed = (account, characters, artifactsList) => {
   const divinityMinorBonus = getMinorDivinityBonus(purrmepPlayer, account, 6, characters);
   const cardBonus = getCardBonusByEffect(account?.cards, 'Sailing_Speed_(Passive)');
   const stampBonus = getStampsBonusByEffect(account, 'Sailing_Speed')
-  const spelunkerObolMulti = getLabBonus(account?.lab.labBonuses, 8); // gem multi
-  const blackDiamondRhinestone = getJewelBonus(account?.lab?.jewels, 16, spelunkerObolMulti);
-  const mealBonus = getMealsBonusByEffectOrStat(account, null, 'Sailing', blackDiamondRhinestone);
-  const bubbleBonus = getBubbleBonus(account?.alchemy?.bubbles, 'kazam', 'BOATY_BUBBLE', false)
+  const mealBonus = getMealsBonusByEffectOrStat(account, null, 'Sailing');
+  const bubbleBonus = getBubbleBonus(account, 'BOATY_BUBBLE', false)
   const goharutGodBonus = getGodBlessingBonus(account?.divinity?.deities, 'Goharut');
   const bagurGodBonus = getGodBlessingBonus(account?.divinity?.deities, 'Bagur');
   const purrmepGodBonus = getGodBlessingBonus(account?.divinity?.deities, 'Purrmep');
   const artifactBonus = isArtifactAcquired(artifactsList, '10_AD_Tablet')?.bonus ?? 0;
   const vialBonus = getVialsBonusByStat(account?.alchemy?.vials, 'SailSpd');
-  const superbitBonus = isSuperbitUnlocked(account, 'MSA_Sailing')?.bonus ?? 0;
   const skillMasteryBonus = isMasteryBonusUnlocked(account?.rift, account?.totalSkillsLevels?.sailing?.rank, 1);
-  const statueBonus = getStatueBonus(account?.statues, 'StatueG25')
+  const statueBonus = getStatueBonus(account, 24)
+  const voteBonus = getVoteBonus(account, 24);
+  const msaBonus = account?.msaTotalizer?.sailing?.value ?? 0;
 
-  const firstMath = (1
-      + (divinityMinorBonus
-        + cardBonus
-        + bubbleBonus) / 125)
-    * (1
-      + goharutGodBonus
-      / 100);
-  return firstMath * (1 + purrmepGodBonus / 100)
-    * (1
-      + (bagurGodBonus
-        + artifactBonus
-        + stampBonus
-        + statueBonus
-        + mealBonus
-        + vialBonus
-        + (17 * skillMasteryBonus + superbitBonus)) / 125)
+  return (1 + (divinityMinorBonus
+      + (cardBonus
+        + bubbleBonus)) / 125)
+    * (1 + goharutGodBonus / 100)
+    * (1 + purrmepGodBonus / 100)
+    * (1 + voteBonus / 100)
+    * (1 + (bagurGodBonus
+      + (artifactBonus
+        + (stampBonus
+          + (statueBonus
+            + (mealBonus
+              + (vialBonus
+                + (17 * skillMasteryBonus
+                  + (msaBonus)))))))) / 125);
 }
 
 const getCaptain = (captain, index, isShop) => {
@@ -351,9 +352,11 @@ const getBoatUpgradeCost = (boat, itemIndex) => {
   const value = itemIndex === 0 ? boat?.lootLevel : boat?.speedLevel;
   if (boatType === 0) {
     return Math.round((5 + 4 * value) * Math.pow(1.17 - .12 * value / (value + 200), value))
-  } else if (boatType % 2 === 1) {
+  }
+  else if (boatType % 2 === 1) {
     return Math.round((5 + 2 * value) * Math.pow(1.15 - (0.1 * value) / (value + 200), value));
-  } else {
+  }
+  else {
     return Math.round((2 + value) * Math.pow(1.12 - (0.07 * value) / (value + 200), value));
   }
 }
@@ -396,7 +399,7 @@ const getFinalBoatLoot = ({
   return (5 + lootLevelMath * lootLevel) * (1 + (lootPileSigil + ((firstCaptainBonus + secondCaptainBonus) + artifactBonus)) / 100) * talentBonus;
 }
 const getBoatLootValue = (characters, account, artifactsList, boat, captain) => {
-  const unendingLootSearch = getHighestTalentByClass(characters, 3, 'Siege_Breaker', 'UNENDING_LOOT_SEARCH');
+  const unendingLootSearch = getHighestTalentByClass(characters, CLASSES.Siege_Breaker, 'UNENDING_LOOT_SEARCH');
   const talentBonus = 1 + unendingLootSearch / 100;
   const nextBreakpoint = boat?.lootLevel + (8 - (boat?.lootLevel % 8));
   const nextLevelMath = 2 + Math.pow(Math.floor(((boat?.lootLevel) + 1) / 8), 2)
@@ -465,7 +468,8 @@ const getCaptainBonus = (bonusIndex, captain, captainBonusIndex) => {
   if (captainBonusIndex > 0) return 0;
   if (captainBonusIndex === bonusIndex) {
     return captain?.level * captain?.firstBonusValue;
-  } else if (captainBonusIndex === bonusIndex) {
+  }
+  else if (captainBonusIndex === bonusIndex) {
     return captain?.level * captain?.secondBonusValue;
   }
   return 0;
@@ -475,13 +479,17 @@ const getCaptainBonus = (bonusIndex, captain, captainBonusIndex) => {
 const getBoatFrame = (totalLevels) => {
   if (totalLevels < 25) {
     return 0;
-  } else if (totalLevels < 50) {
+  }
+  else if (totalLevels < 50) {
     return 1;
-  } else if (totalLevels < 100) {
+  }
+  else if (totalLevels < 100) {
     return 2;
-  } else if (totalLevels < 200) {
+  }
+  else if (totalLevels < 200) {
     return 3;
-  } else {
+  }
+  else {
     return totalLevels < 300 ? 4 : 5
   }
 }
@@ -496,14 +504,14 @@ const getLootPile = (lootPile) => {
 
 const getArtifact = (artifact, acquired, lootPile, index, charactersData, account) => {
   let additionalData, bonus = artifact?.baseBonus, baseBonus = artifact?.baseBonus,
-    upgradedForm = acquired === 2 || acquired === 3 || acquired === 4, formMultiplier = acquired,
+    upgradedForm = acquired === 2 || acquired === 3 || acquired === 4 || acquired === 5, formMultiplier = acquired,
     multiplierType = acquired === 2 ? 'ancientMultiplier' : acquired === 3 ? 'eldritchMultiplier' : acquired === 4
-      ? 'sovereignMultiplier'
-      : 'baseBonus';
+      ? 'sovereignMultiplier' : acquired === 5 ? 'omnipotentMultiplier'
+        : 'baseBonus';
 
   let fixedDescription = artifact?.description;
   if (artifact?.name === 'Maneki_Kat' || artifact?.name === 'Ashen_Urn') {
-    const highestLevel = getHighestLevelCharacter(charactersData)
+    const highestLevel = getHighestLevelCharacter(charactersData);
     additionalData = `Highest level: ${highestLevel}`;
     bonus = highestLevel * artifact?.baseBonus;
     if (artifact?.name === 'Ashen_Urn') {
@@ -512,37 +520,47 @@ const getArtifact = (artifact, acquired, lootPile, index, charactersData, accoun
         : highestLevel * artifact?.baseBonus;
       fixedDescription = `${fixedDescription} Total Bonus: ${upgradedForm ? bonus * formMultiplier : bonus}`;
     }
-  } else if (artifact?.name === 'Ruble_Cuble' || artifact?.name === '10_AD_Tablet' || artifact?.name === 'Jade_Rock' || artifact?.name === 'Gummy_Orb') {
+  }
+  else if (artifact?.name === 'Ruble_Cuble' || artifact?.name === '10_AD_Tablet' || artifact?.name === 'Jade_Rock' || artifact?.name === 'Gummy_Orb') {
     const lootedItems = account?.looty?.rawLootedItems;
-    const everyXMulti = artifact?.name === '10_AD_Tablet' || artifact?.name === 'Gummy_Orb';
+    const everyXMulti = artifact?.name === '10_AD_Tablet' || artifact?.name === 'Gummy_Orb' || artifact?.name === 'Jade_Rock';
     additionalData = `Looted items: ${lootedItems}`;
-    const math = artifact?.[multiplierType] * Math.floor(Math.max(0, lootedItems - 500) / 10);
+    const slabSovereignty = getLabBonus(account?.lab.labBonuses, 15); // gem multi
+    const math = artifact?.[multiplierType] * (1 + slabSovereignty / 100) * Math.floor(Math.max(0, lootedItems - 500) / 10);
     bonus = everyXMulti && multiplierType !== 'baseBonus' ? artifact?.baseBonus * math : math;
-  } else if (artifact?.name === 'Fauxory_Tusk' || artifact?.name === 'Genie_Lamp') {
+  }
+  else if (artifact?.name === 'Fauxory_Tusk' || artifact?.name === 'Genie_Lamp') {
     const isGenie = artifact?.name === 'Genie_Lamp';
     const highestSailing = getHighestCharacterSkill(charactersData, 'sailing');
     bonus = isGenie ? highestSailing * artifact?.baseBonus : highestSailing;
     additionalData = `Sailing level: ${highestSailing}`;
-  } else if (artifact?.name === 'Weatherbook') {
+  }
+  else if (artifact?.name === 'Weatherbook') {
     const highestGaming = getHighestCharacterSkill(charactersData, 'gaming');
     additionalData = `Gaming level: ${highestGaming}`;
     bonus = highestGaming * artifact?.baseBonus;
-  } else if (artifact?.name === 'Triagulon') {
+  }
+  else if (artifact?.name === 'Triagulon') {
     const ownedTurkey = account?.cooking?.meals?.[0]?.amount;
     bonus = (artifact?.baseBonus * lavaLog(ownedTurkey));
-  } else if (artifact?.name === 'Opera_Mask') {
+  }
+  else if (artifact?.name === 'Opera_Mask') {
     const sailingGold = lootPile?.[0];
     bonus = (artifact?.baseBonus * lavaLog(sailingGold));
-  } else if (artifact?.name === 'Fun_Hippoete') {
+  }
+  else if (artifact?.name === 'Fun_Hippoete') {
     bonus = artifact?.baseBonus * lavaLog(account?.construction?.playersBuildRate)
-  } else if (artifact?.name === 'The_True_Lantern') {
+  }
+  else if (artifact?.name === 'The_True_Lantern') {
     bonus = artifact?.baseBonus * (lavaLog(account?.atoms?.particles) ?? 0);
-  } else if (artifact?.name === 'Gold_Relic') {
+  }
+  else if (artifact?.name === 'Gold_Relic') {
     const daysSinceLastSample = account?.accountOptions?.[125];
     const goldRelicBonus = upgradedForm ? artifact?.[multiplierType] : 0;
     const daysBonus = 1 + ((daysSinceLastSample) * (2 + goldRelicBonus)) / 100;
     additionalData = `Days passed: ${daysSinceLastSample}. Bonus: ${notateNumber(daysBonus, 'MultiplierInfo').replace('#', '')}x`;
-  } else if (artifact?.name === 'Crystal_Steak') {
+  }
+  else if (artifact?.name === 'Crystal_Steak') {
     const mainStats = charactersData?.map(({ name, class: className, stats }) => {
       const mainStat = mainStatMap?.[className];
       return { name, stat: stats?.[mainStat] };
@@ -552,7 +570,8 @@ const getArtifact = (artifact, acquired, lootPile, index, charactersData, accoun
       name,
       bonus: (upgradedForm ? bonus * formMultiplier : bonus) * Math.floor(stat / 100)
     }));
-  } else if (artifact?.name === 'Socrates') {
+  }
+  else if (artifact?.name === 'Socrates') {
     const mainStats = charactersData?.map(({ name, stats }) => {
       return {
         name,
@@ -576,10 +595,15 @@ const getArtifact = (artifact, acquired, lootPile, index, charactersData, accoun
 
   if (acquired === 2 && artifact?.ancientFormDescription === 'The_artifact\'s_main_bonus_is_doubled!') {
     bonus *= 2;
-  } else if (acquired === 3 && artifact?.eldritchFormDescription === 'The_artifact\'s_main_bonus_is_tripled!') {
+  }
+  else if (acquired === 3 && artifact?.eldritchFormDescription === 'The_artifact\'s_main_bonus_is_tripled!') {
     bonus *= 3;
-  } else if (acquired === 4 && artifact?.sovereignFormDescription === 'The_artifact\'s_main_bonus_is_quadrupled!') {
+  }
+  else if (acquired === 4 && artifact?.sovereignFormDescription === 'The_artifact\'s_main_bonus_is_quadrupled!') {
     bonus *= 4;
+  }
+  else if (acquired === 5 && artifact?.omnipotentFormDescription === 'The_artifact\'s_main_bonus_is_quintupled') {
+    bonus *= 5;
   }
 
   fixedDescription = fixedDescription.replace(/{/, baseBonus).replace(/}/, kFormatter(bonus, 2)).replace(/@/, '');

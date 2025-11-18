@@ -1,6 +1,8 @@
 import { items, traps as trapsInfo } from '../data/website-data';
 import { getVialsBonusByStat } from '@parsers/alchemy';
-import { checkCharClass, getCharacterByHighestTalent, getTalentBonus } from '@parsers/talents';
+import { checkCharClass, CLASSES, getCharacterByHighestTalent, getTalentBonus } from '@parsers/talents';
+import { getCompassBonus } from '@parsers/compass';
+import { getAtomBonus } from '@parsers/atomCollider';
 
 export const getTraps = (rawCharactersData) => {
   return parseTraps(rawCharactersData);
@@ -70,21 +72,23 @@ export const getTrapsBonuses = (account, characters) => {
 }
 
 export const calcCrittersBonus = ({ currentCharacterIndex, account, characters, isExp }) => {
-  let moreCritters = isExp ? 0 : getVialsBonusByStat(account?.alchemy?.vials, 'TrapOvision');
-  if (checkCharClass(characters?.[currentCharacterIndex]?.class, 'Hunter')) {
-    const bestHunter = getCharacterByHighestTalent(characters, 2, 'Hunter', 'EAGLE_EYE', isExp);
+  // CollectAllPCT
+  const atomBonus = getAtomBonus(account, 'Magnesium_-_Trap_Compounder') * account?.accountOptions?.[363];
+  let moreCritters = isExp
+    ? 0
+    : getVialsBonusByStat(account?.alchemy?.vials, 'TrapOvision') + getCompassBonus(account, 42) + atomBonus;
+  if (checkCharClass(characters?.[currentCharacterIndex]?.class, CLASSES.Hunter)) {
+    const bestHunter = getCharacterByHighestTalent(characters, CLASSES.Hunter, 'EAGLE_EYE', isExp);
     moreCritters += isExp
-      ? Math.max(40, Math.min(getTalentBonus(bestHunter?.talents, 2, 'EAGLE_EYE', isExp), 99))
-      : Math.max(50, getTalentBonus(bestHunter?.talents, 2, 'EAGLE_EYE'));
-  }
-  else {
+      ? Math.max(40, Math.min(getTalentBonus(bestHunter?.flatTalents, 'EAGLE_EYE', isExp), 99))
+      : Math.max(50, getTalentBonus(bestHunter?.flatTalents, 'EAGLE_EYE'));
+  } else {
     let highestCritterBonus = 0;
     for (let i = 0; i < characters?.length; i++) {
-      if (checkCharClass(characters?.[i]?.class, 'Hunter')) {
-        const bestHunter = getCharacterByHighestTalent(characters, 2, 'Hunter', 'EAGLE_EYE', isExp, true);
-        highestCritterBonus = Math.max(highestCritterBonus, getTalentBonus(bestHunter?.talents, 2, 'EAGLE_EYE', isExp, true));
-      }
-      else {
+      if (checkCharClass(characters?.[i]?.class, CLASSES.Hunter)) {
+        const bestHunter = getCharacterByHighestTalent(characters, CLASSES.Hunter, 'EAGLE_EYE', isExp, true);
+        highestCritterBonus = Math.max(highestCritterBonus, getTalentBonus(bestHunter?.flatTalents, 'EAGLE_EYE', isExp, true));
+      } else {
         highestCritterBonus = Math.max(highestCritterBonus, isExp ? 40 : 50);
       }
     }

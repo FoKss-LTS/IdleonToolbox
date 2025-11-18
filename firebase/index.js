@@ -3,8 +3,8 @@ import {
   GoogleAuthProvider,
   OAuthProvider,
   signInWithCredential,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
-  signInWithPopup,
   signOut
 } from 'firebase/auth';
 import { child, get, getDatabase, goOnline, query, ref } from 'firebase/database';
@@ -67,10 +67,12 @@ const signInWithEmailPassword = async ({ email, password } = {}) => {
   return result?.user;
 }
 
-const signInWithApple = async () => {
+const signInWithCustom = async (token, dispatch) => {
+  if (!token) return;
   const auth = getAuth(app);
-  const provider = new OAuthProvider('apple.com');
-  const result = await signInWithPopup(auth, provider);
+  const result = await signInWithCustomToken(auth, token).catch(function (error) {
+    dispatch({ type: 'loginError', data: error?.message })
+  })
   return result?.user;
 }
 
@@ -98,6 +100,9 @@ const subscribe = async (uid, accessToken, callback) => {
   goOnline(database);
   const dbRef = ref(database);
   const charNames = await getSnapshot(dbRef, `_uid/${uid}`);
+  if (!charNames) {
+    throw new Error('No characters found');
+  }
 
   let serverVars;
   if (firestore?.type === 'firestore') {
@@ -116,6 +121,10 @@ const subscribe = async (uid, accessToken, callback) => {
       { includeMetadataChanges: true }, async (doc) => {
         if (doc.exists()) {
           const companion = await getSnapshot(dbRef, `_comp/${uid}`);
+          // const friendsList = await getSnapshot(dbRef, `_friends/_list/${uid}`); // friend list
+          // const serverLogs = await getSnapshot(dbRef, `_dm/${uid}/_msg`);
+          // const lt = await getSnapshot(dbRef, `_dm/${uid}/_lt`); // not sure
+          // const lastGuildChatMsgTimestamp = await getSnapshot(dbRef, `_usgu/${uid}/t`);
           const guildId = await getSnapshot(dbRef, `_usgu/${uid}/g`);
           const guild = await getSnapshot(dbRef, `_guild/${guildId}`);
           const cloudsave = doc.data();
@@ -141,7 +150,6 @@ export const getGuilds = async (callback) => {
     const guildsDocs = await getDocs(fsQuery(snap));
     const allGuilds = [];
     guildsDocs.forEach((doc) => {
-      // console.log(doc.id, ' => ', doc.data());
       const { stats, n: guildName, i: guildIcon } = doc.data() || {};
       const totalStatCost = stats?.reduce((sum, targetLevel, index) => sum + calculateGuildBonusCost(targetLevel,
         guildBonuses?.[index]?.gpBaseCost, guildBonuses?.[index]?.gpIncrease), 0);
@@ -177,7 +185,6 @@ export const getGuilds = async (callback) => {
   }
 }
 
-
 const getSnapshot = async (dbRef, id) => {
   try {
     const snapshot = await get(child(dbRef, id))
@@ -207,7 +214,7 @@ const userSignOut = async () => {
 export {
   signInWithToken,
   signInWithEmailPassword,
-  signInWithApple,
+  signInWithCustom,
   subscribe,
   checkUserStatus,
   userSignOut

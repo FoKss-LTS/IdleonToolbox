@@ -1,6 +1,30 @@
 import { format, getDaysInMonth, getDaysInYear, intervalToDuration, isValid } from 'date-fns';
 import { drawerPages } from '@components/constants';
 import merge from 'lodash.merge';
+import { mapEnemiesArray, mapNames, monsters } from '../data/website-data'
+
+export const getTabs = (array, label, tabName, nestedTabName) => {
+  const navItem = array.find((item) => item.label === label);
+
+  if (!navItem) return [];
+
+  // If we're looking for a specific tab's nested tabs
+  if (tabName) {
+    const nestedItems = navItem.nestedTabs?.filter((item) => item.tab === tabName);
+
+    // If we're looking for a specific nested tab's nested tabs
+    if (nestedTabName) {
+      const deepNestedItem = nestedItems?.find((item) => item.nestedTab === nestedTabName);
+      return deepNestedItem?.nestedTabs || [];
+    }
+
+    // Just return the nested tab names for the specified tab
+    return nestedItems?.map(({ nestedTab }) => nestedTab) || [];
+  }
+
+  // Return top-level tabs
+  return navItem.tabs?.map((item) => item?.tab || item) || [];
+};
 
 export const downloadFile = (data, filename) => {
   const blob = new Blob([data], { type: 'text/json' });
@@ -19,6 +43,7 @@ export const downloadFile = (data, filename) => {
   link.dispatchEvent(evt);
   link.remove()
 }
+
 // Calculating days manually because of JS limitation for dates https://262.ecma-international.org/5.1/#sec-15.9.1.1
 const msPerDay = 8.64e+7;
 export const getTimeAsDays = (time) => {
@@ -122,7 +147,11 @@ export const growth = (func, level, x1, x2, shouldRound = true) => {
 };
 
 export const lavaLog = (num) => {
-  return Math.log(Math.max(num, 1)) / 2.303;
+  return Math.log(Math.max(num, 1)) / 2.30259;
+};
+
+export const lavaLog2 = (num) => {
+  return Math.log(Math.max(num, 1)) / Math.log(2);
 };
 
 export const round = (num) => {
@@ -138,7 +167,7 @@ export const createRange = (start, end) => {
 }
 export const cloneObject = (data) => {
   try {
-    return JSON.parse(JSON.stringify(data));
+    return structuredClone(data);
   } catch (err) {
     return data;
   }
@@ -178,6 +207,20 @@ export const kFormatter = (num, digits = 1) => {
   }
   return (num / si[i].value).toFixed(digits).replace(rx, '$1') + si[i].symbol;
 };
+
+export const cashFormatter = (value) => {
+  let result;
+  if (value > 1e16) {
+    result = (Math.floor(value / 1e14) / 10) + 'Q'
+  } else if (value > 1e13) {
+    result = (Math.floor(value / 1e11) / 10) + 'T'
+  } else if (value > 1e7) {
+    result = (Math.floor(value / 1e5) / 10) + 'M'
+  } else {
+    result = notateNumber(value, 'MultiplierInfo')
+  }
+  return result;
+}
 
 function splitDecimal(numStr, allowNegative = true) {
   const hasNegation = numStr[0] === '-';
@@ -226,6 +269,7 @@ export const pascalCase = (str) => {
 };
 
 export const getCoinsArray = (coins) => {
+  if (!Number.isFinite(coins)) return [];
   const highestCoinIndex = 15;
   let n = BigInt(Math.floor(coins)).toString();
 
@@ -344,7 +388,6 @@ export const notateNumber = (e, s) => {
                                   : 'TinyE' === s
                                     ? '' + Math.floor(e / Math.pow(10, Math.floor(lavaLog(e))) * 10) / 10 + ('e' + Math.floor(lavaLog(e)))
                                     : '' + Math.floor(e / Math.pow(10, Math.floor(lavaLog(e))) * 100) / 100 + ('E' + Math.floor(lavaLog(e)))
-
 }
 export const commaNotation = (number) => {
   // Initialize variables
@@ -389,11 +432,15 @@ export const worlds = {
   2: 'Frostbite Tundra',
   3: 'Hyperion Nebula',
   4: 'Smolderin\' Plateau',
-  5: 'Spirited Valley'
+  5: 'Spirited Valley',
+  6: 'World 7'
 };
 
 const maxTimeValue = 9.007199254740992e+15;
 export const getDuration = (start, end) => {
+  if (!isValid(start) || !isValid(end)) {
+    return 0;
+  }
   if (start > maxTimeValue || end > maxTimeValue) {
     return {};
   }
@@ -527,7 +574,7 @@ export const fillMissingTalents = (arr) => {
     .filter(num => !talentIds.includes(num))
     .map(talentId => ({ talentId }));
 
-  return arr.concat(missingNumbers).sort((a, b) => a.talentId - b.talentId);
+  return arr.concat(missingNumbers)
 }
 
 export const removeDuplicatesByKey = (array, key) => {
@@ -600,6 +647,150 @@ export const handleDownload = (jsonData, fileName) => {
   URL.revokeObjectURL(url);
 };
 
-export const worldsArray = ['World 1', 'World 2', 'World 3', 'World 4', 'World 5', 'World 6'];
+export const handleLoadJson = async (dispatch) => {
+  try {
+    const content = JSON.parse(await navigator.clipboard.readText());
+    const { data, charNames, companion, guildData, serverVars } = content;
+    const { parseData } = await import('@parsers/index');
+    const parsedData = parseData(data, charNames, companion, guildData, serverVars);
+    const lastUpdated = new Date().getTime();
+    localStorage.setItem('lastUpdated', JSON.stringify(lastUpdated));
+    // console.log('Manual Import', { ...parsedData, lastUpdated, manualImport: true });
+    localStorage.setItem('rawJson', JSON.stringify({
+      data,
+      charNames,
+      companion,
+      guildData,
+      serverVars,
+      lastUpdated
+    }))
+    dispatch({ type: 'data', data: { ...parsedData, lastUpdated, manualImport: true } });
+  } catch (e) {
+    console.error('Error while trying to manual import', e);
+  }
+}
+
+export const isValidUrl = (url) => {
+  try {
+    new URL(url)
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+
+export const worldsArray = ['World 1', 'World 2', 'World 3', 'World 4', 'World 5', 'World 6', 'World 7'];
 export const prefix = isProd ? '/' : '/';
 
+export const excludedPortals = {
+  0: [0],
+  9: [0],
+  17: [0],
+  24: [1],
+  27: [0],
+  28: [0],
+  30: [0],
+  31: [0],
+  38: [0],
+  60: [1],
+  65: [0],
+  69: [0],
+  113: [0],
+  117: [0],
+  120: [0],
+  166: [0],
+  213: [0],
+  264: [0]
+}
+export const getFilteredPortals = () => {
+  const excludedMaps = [
+    'Nothing', 'Z', 'Copper',
+    'Iron', 'Starfire', 'Plat', 'Void',
+    'Filler', 'JungleZ', 'Grandfrog\'s_Gazebo',
+    'Grandfrog\'s_Backyard', 'Gravel_Tomb', 'Heaty_Hole',
+    'Igloo\'s_Basement', 'Inside_the_Igloo', 'End_Of_The_Road',
+    'Efaunt\'s_Tomb', 'Eycicles\'s_Nest', 'Enclave_a_la_Troll',
+    'Chizoar\'s_Cavern', 'KattleKruk\'s_Volcano', 'Castle_Interior', 'Emperor\'s_Castle'].toSimpleObject();
+  return Object.entries(mapNames).map(([mapIndex, mapName], index) => {
+    const rawName = mapEnemiesArray?.[index];
+    const { AFKtype } = monsters?.[rawName] || {};
+    return {
+      mapName,
+      mapIndex,
+      afkType: AFKtype
+    }
+  }).filter(({
+               mapName,
+               afkType
+             }) => afkType === 'FIGHTING' &&
+    !excludedMaps[mapName]
+    && !afkType.includes('Fish') && !afkType.includes('Bug') && !mapName.includes('Colosseum'));
+}
+
+// Parses shorthand notations like '12B', '2QQ', '3.2QQQ' into numbers
+// Also handles locale-specific thousands separators like '12.000.000' (German) or '12,000,000' (US)
+export function parseShorthandNumber(input) {
+  if (typeof input !== 'string') return NaN;
+
+  const multipliers = {
+    '': 1,
+    k: 1e3,
+    m: 1e6,
+    b: 1e9,
+    t: 1e12,
+    q: 1e15,
+  };
+
+  const cleaned = input
+    .trim()
+    .replace(/\s+/g, '')          // remove all spaces
+    .replace(/\p{Z}/gu, '')       // remove Unicode separators
+    .replace(/[,'`'´'' ]/g, '')   // remove common punctuation separators (keep decimal point)
+    .replace(/\u00A0/g, '')       // remove non-breaking spaces
+    .replace(/\u2009/g, '')       // remove thin spaces
+    .replace(/\u202F/g, '')       // remove narrow no-break spaces
+    .toLowerCase();
+
+  const match = cleaned.match(/^([0-9.]+)([kmbtq]*)$/);
+  if (!match) return NaN;
+
+  let numberPart = match[1];
+  let suffix = match[2];
+
+  // Handle locale-specific thousands separators
+  // If there are multiple periods, treat all as thousands separators
+  const periodCount = (numberPart.match(/\./g) || []).length;
+  if (periodCount > 1) {
+    // Multiple periods: treat all as thousands separators
+    numberPart = numberPart.replace(/\./g, '');
+  } else if (periodCount === 1) {
+    // Single period: check if it's likely a thousands separator or decimal point
+    const periodIndex = numberPart.indexOf('.');
+    const digitsAfterPeriod = numberPart.length - periodIndex - 1;
+    
+    // If there are 3 digits after the period, it's likely a thousands separator
+    // If there are more than 3 digits, it's likely a decimal point
+    if (digitsAfterPeriod === 3) {
+      // Treat as thousands separator
+      numberPart = numberPart.replace('.', '');
+    }
+    // Otherwise, treat as decimal point (no change needed)
+  }
+
+  const num = parseFloat(numberPart);
+  if (isNaN(num)) return NaN;
+
+  // Handle repeated Qs (QQ = 1e18, etc.)
+  if (suffix.startsWith('q') && suffix.length > 1) {
+    let base = 1e15;
+    for (let i = 1; i < suffix.length; i++) {
+      base *= 1e3;
+    }
+    return num * base;
+  }
+
+  return num * (multipliers[suffix] || 1);
+}
+
+export const worldColor = ['#64b564', '#f1ac45', '#00bcd4', '#864ede', '#de4e4e', '#5FF1B4FF'];

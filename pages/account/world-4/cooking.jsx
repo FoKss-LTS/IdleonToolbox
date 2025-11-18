@@ -1,28 +1,34 @@
-import { Checkbox, FormControl, FormControlLabel, InputLabel, Select, Stack, Typography } from '@mui/material';
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { Checkbox, FormControl, FormControlLabel, InputLabel, Select, Stack } from '@mui/material';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AppContext } from 'components/common/context/AppProvider';
 import Kitchens from 'components/account/Worlds/World4/Kitchens';
 import Meals from '@components/account/Worlds/World4/Meals';
 import { NextSeo } from 'next-seo';
 import Tabber from '../../../components/common/Tabber';
-import { tryToParse } from '@utility/helpers';
+import { getTabs, tryToParse } from '@utility/helpers';
 import { parseKitchens } from '@parsers/cooking';
 import MenuItem from '@mui/material/MenuItem';
 import { getPlayerLabChipBonus } from '@parsers/lab';
 import InfoIcon from '@mui/icons-material/Info';
 import Tooltip from '@components/Tooltip';
+import { PAGES } from '@components/constants';
 
 const Cooking = () => {
   const { state } = useContext(AppContext);
   const { cooking, achievements, sailing } = state?.account || {};
-  const characters = state?.characters?.map(({ name, playerId }) => ({ name, playerId }));
+  const characters = state?.characters?.map(({ name, playerId, starSigns }) => ({ name, playerId, starSigns }));
   const [selectedCharacter, setSelectedCharacter] = useState(characters?.[0]);
   const [enableNanoChip, setEnableNanoChip] = useState(false);
 
+  const hasNanoAndGordonius = useCallback(
+    () => {
+      const hasChip = getPlayerLabChipBonus(selectedCharacter, state?.account, 15);
+      const hasGordonius = selectedCharacter?.starSigns?.find(({ starName }) => starName === 'Gordonius_Major');
+      return !!hasChip && !!hasGordonius;
+    }, [selectedCharacter]);
+
   useEffect(() => {
-    const hasChip = getPlayerLabChipBonus(selectedCharacter, state?.account, 15);
-    const hasGordonius = selectedCharacter?.starSigns?.find(({starName}) => starName === 'Gordonius_Major')?.unlocked;
-    setEnableNanoChip(!!hasChip && !!hasGordonius);
+    setEnableNanoChip(hasNanoAndGordonius());
   }, [selectedCharacter]);
 
   const kitchens = useMemo(() => {
@@ -52,6 +58,7 @@ const Cooking = () => {
         <FormControl sx={{ width: 170 }}>
           <InputLabel id="selected-character">Character</InputLabel>
           <Select
+            size={'small'}
             labelId="selected-character"
             id="selected-character"
             value={selectedCharacter?.playerId}
@@ -67,6 +74,7 @@ const Cooking = () => {
         <Stack direction={'row'} alignItems={'center'}>
           <FormControlLabel
             control={<Checkbox name={'enableNanoChip'}
+                               disabled={hasNanoAndGordonius()}
                                checked={enableNanoChip}
                                size={'small'}
             />}
@@ -77,7 +85,7 @@ const Cooking = () => {
           </Tooltip>
         </Stack>
       </Stack>
-      <Tabber tabs={['Kitchens', 'Meals']}>
+      <Tabber tabs={getTabs(PAGES.ACCOUNT['world 4'].categories, 'cooking')}>
         <Kitchens {...cooking}
                   kitchens={kitchens}
                   achievements={achievements}
@@ -96,6 +104,7 @@ const Cooking = () => {
                totalMealSpeed={totalMealSpeed}
                account={state?.account}
                artifacts={sailing?.artifacts}
+               mealMaxLevel={state?.account?.cooking?.mealMaxLevel}
                equinoxUpgrades={state?.account?.equinox?.upgrades}
         />
       </Tabber>

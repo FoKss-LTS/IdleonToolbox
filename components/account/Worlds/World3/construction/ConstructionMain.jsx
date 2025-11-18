@@ -27,6 +27,7 @@ const ConstructionMain = () => {
   const { state } = useContext(AppContext);
   const [view, setView] = useState('build');
   const [showTooltip, setShowTooltip] = useState(true);
+  const [roundedValues, setRoundedValues] = useState(true);
   const [stat, setStat] = useState('totalBuildRate');
   const [computeTime, setComputeTime] = useState(2500);
   const [current, setCurrent] = useState(state?.account?.construction);
@@ -79,7 +80,7 @@ const ConstructionMain = () => {
 
   const handleOptimize = () => {
     setCurrent(state?.account?.construction)
-    const base = JSON.parse(JSON.stringify(state?.account?.construction?.baseBoard));
+    const base = structuredClone((state?.account?.construction?.baseBoard));
     const opt = optimizeArrayWithSwaps(base, stat, computeTime, state?.characters);
     setMoves({ list: opt?.moves, current: 0 })
     setOptimized(opt);
@@ -164,6 +165,11 @@ const ConstructionMain = () => {
                 name={'showTooltip'}
                 label="Show tooltip"
               />
+              <FormControlLabel
+                control={<Checkbox checked={roundedValues} onChange={() => setRoundedValues(!roundedValues)}/>}
+                name={'roundedValues'}
+                label="Rounded Values"
+              />
             </Stack>
           </CardTitleAndValue>
           <CardTitleAndValue title={'Optimize'}>
@@ -191,6 +197,7 @@ const ConstructionMain = () => {
           </CardTitleAndValue>
         </Stack>
         <ConstructionBoard view={view} showTooltip={showTooltip}
+                           roundedValues={roundedValues}
                            setOutsideHighlight={setOutsideHighlight}
                            move={moves.list[moves.current]}
                            board={current?.board}/>

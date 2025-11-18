@@ -2,8 +2,11 @@ import { fillArrayToLength, lavaLog, notateNumber } from '@utility/helpers';
 import { holesInfo } from '../../../data/website-data';
 import { getMonumentBonus } from '@parsers/world-5/caverns/bravery';
 import { getLampBonus } from '@parsers/world-5/caverns/the-lamp';
-import { getMeasurementBonus } from '@parsers/world-5/hole';
+import { getMeasurementBonus, getStudyBonus } from '@parsers/world-5/hole';
 import { getBellBonus } from '@parsers/world-5/caverns/the-bell';
+import { getGambitBonus } from '@parsers/world-5/caverns/gambit';
+import { getJarBonus } from '@parsers/world-5/caverns/the-jars';
+import { getStampsBonusByEffect } from '@parsers/stamps';
 
 export const getTheWell = (holesObject, accountData) => {
   const { wellSediment, sedimentMulti, wellBuckets } = holesObject;
@@ -51,30 +54,30 @@ const getOpalCost = (holesObject) => {
 }
 
 const getOwnedBuckets = (holesObject) => {
-  return Math.round(1 + (getBucketBonus({ ...holesObject, t: 3, i: 1 })
-    + (getBucketBonus({ ...holesObject, t: 4, i: 1 })
-      + (getBucketBonus({ ...holesObject, t: 5, i: 1 })
-        + (getBucketBonus({ ...holesObject, t: 6, i: 1 })
-          + (getBucketBonus({ ...holesObject, t: 7, i: 1 })
-            + (getBucketBonus({ ...holesObject, t: 8, i: 1 })
-              + (getBucketBonus({ ...holesObject, t: 9, i: 1 })
-                + (getBucketBonus({ ...holesObject, t: 10, i: 1 })
-                  + getBucketBonus({ ...holesObject, t: 11, i: 1 }))))))))));
+  return Math.round(1 + (getSchematicBonus({ holesObject, t: 3, i: 1 })
+    + (getSchematicBonus({ holesObject, t: 4, i: 1 })
+      + (getSchematicBonus({ holesObject, t: 5, i: 1 })
+        + (getSchematicBonus({ holesObject, t: 6, i: 1 })
+          + (getSchematicBonus({ holesObject, t: 7, i: 1 })
+            + (getSchematicBonus({ holesObject, t: 8, i: 1 })
+              + (getSchematicBonus({ holesObject, t: 9, i: 1 })
+                + (getSchematicBonus({ holesObject, t: 10, i: 1 })
+                  + getSchematicBonus({ holesObject, t: 11, i: 1 }))))))))));
 }
 const getSedimentMax = ({ sedimentMulti, index }) => {
   const anotherSedimentMulti = holesInfo?.[21]?.split(' ');
   return 100 * Math.pow(1.5, sedimentMulti?.[index]) * (1 + anotherSedimentMulti?.[index] / 100);
 }
-export const getBucketBonus = ({
-                                 wellSediment,
-                                 sedimentMulti,
-                                 extraCalculations,
-                                 bellImprovementMethods,
-                                 engineerSchematics,
-                                 t,
-                                 i
-                               }) => {
-  if (0 === engineerSchematics[t]) return 0;
+export const getSchematicBonus = ({ holesObject, t, i }) => {
+  const {
+    wellSediment,
+    sedimentMulti,
+    extraCalculations,
+    bellImprovementMethods,
+    engineerSchematics,
+    studyStuff
+  } = holesObject || {};
+  if (0 === engineerSchematics?.[t]) return 0;
   if (14 === t) {
     let result = 0;
 
@@ -83,7 +86,7 @@ export const getBucketBonus = ({
       let holeValue = sedimentMulti[t];
       result = currentValue + holeValue;
     }
-    result *= 20;
+    result *= (20 + getStudyBonus({ studyStuff }, 0, 0));
     return result;
   }
   if (45 === t) {
@@ -100,13 +103,11 @@ export const getBucketBonus = ({
   return 46 === t ? 5 * (extraCalculations[26]) : 47 === t
     ? 25 * (extraCalculations[26])
     : 48 === t ? 10 * (extraCalculations[26]) : 49 === t
-      ? i * ((extraCalculations[1]) + (extraCalculations[3]) * getBucketBonus({
-      wellSediment,
-      extraCalculations,
-      engineerSchematics,
-      t: 50,
-      i: 1
-    }))
+      ? i * (extraCalculations[1]
+      + (extraCalculations[3]
+        * getSchematicBonus({ holesObject, t: 50, i: 1 })
+        + extraCalculations[5]
+        * getSchematicBonus({ holesObject, t: 79, i: 1 })))
       : 52 === t
         ? 60 * Math.floor(lavaLog((wellSediment[0])))
         : 53 === t
@@ -116,7 +117,7 @@ export const getBucketBonus = ({
             : 55 === t
               ? 10 * Math.floor(lavaLog((wellSediment[11])))
               : 56 === t
-                ? Math.pow(1.3, Math.floor(lavaLog((wellSediment[2]))))
+                ? Math.pow(1.3, Math.floor(lavaLog((wellSediment?.[2]))))
                 : 57 === t
                   ? 20 * Math.floor(lavaLog((wellSediment[1])))
                   : 58 === t
@@ -125,19 +126,26 @@ export const getBucketBonus = ({
                       ? (((extraCalculations[33]) +
                       ((extraCalculations[34])
                         + ((extraCalculations[35]) + (extraCalculations[36])))) / 100) * 10
-                      : i;
+                      : 82 === t || 83 === t || 84 === t
+                        ? i * extraCalculations[55]
+                        : i;
 };
+
 const getBucketFillRate = (holesObject, accountData) => {
-  return getBucketBonus({ ...holesObject, t: 58, i: 0 })
-    + getBucketBonus({ ...holesObject, t: 59, i: 0 })
-    + (10 + (getBucketBonus({ ...holesObject, t: 1, i: 5 })
-      + getBucketBonus({ ...holesObject, t: 26, i: 5 })))
-    * (1 + getBucketBonus({ ...holesObject, t: 14, i: 0 }) / 100)
+  const stampBonus = getStampsBonusByEffect(accountData, 'more_Resources_from_all_Caverns') || 0;
+  return getSchematicBonus({ holesObject, t: 58, i: 0 })
+    + getSchematicBonus({ holesObject, t: 59, i: 0 })
+    + (10 + (getSchematicBonus({ holesObject, t: 1, i: 5 })
+      + getSchematicBonus({ holesObject, t: 26, i: 5 })))
+    * (1 + getSchematicBonus({ holesObject, t: 14, i: 0 }) / 100)
     * (1 + accountData.gemShopPurchases[2] / 2)
     * (1 + getMonumentBonus({ holesObject, t: 0, i: 1 }) / 100)
     * (1 + getLampBonus({ holesObject, t: 99, i: 0 }) / 100)
-    * Math.max(1, getBucketBonus({ ...holesObject, t: 15, i: 1 })
+    * (1 + getGambitBonus(accountData, 3) / 100)
+    * Math.max(1, getSchematicBonus({ holesObject, t: 15, i: 1 })
       * Math.pow(1.1, holesObject?.extraCalculations[1]))
     * (1 + getMeasurementBonus({ holesObject, accountData, t: 5 }) / 100)
-    * (1 + getBellBonus({ holesObject, t: 0 }) / 100);
+    * (1 + getBellBonus({ holesObject, t: 0 }) / 100)
+    * (1 + getJarBonus({ holesObject, i: 8 }) / 100)
+    * (1 + stampBonus / 100);
 }

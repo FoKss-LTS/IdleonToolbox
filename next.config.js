@@ -2,12 +2,9 @@ const { withSentryConfig } = require("@sentry/nextjs");
 
 const baseConfig = {
   reactStrictMode: false,
-  swcMinify: true,
   assetPrefix: '/',
   output: 'export',
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  reactCompiler: true,
   images: {
     unoptimized: true,
   },
@@ -40,4 +37,4 @@ const sentryConfig = {
   automaticVercelMonitors: true,
 };
 
-module.exports = withSentryConfig(baseConfig, sentryConfig);
+module.exports = baseConfig;

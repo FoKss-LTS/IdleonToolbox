@@ -1,4 +1,8 @@
 import "core-js/actual/array/to-spliced";
+import "core-js/actual/array/to-sorted";
+import "core-js/actual/array/find-last";
+import 'core-js/actual/string/starts-with';
+import 'core-js/actual/structured-clone';
 
 String.prototype.capitalize = function () {
   if (!this) return '';
@@ -7,9 +11,10 @@ String.prototype.capitalize = function () {
 
 String.prototype.camelToTitleCase = function () {
   if (!this) return '';
-  const str = this.replace(/([A-Z0-9"])/g, ' $1')
+  const str = String(this).replace(/([A-Z0-9"])/g, ' $1');
   return str.charAt(0).toUpperCase() + str.slice(1);
-}
+};
+
 String.prototype.capitalizeAllWords = function () {
   return this.replace(/\b\w/g, function (char) {
     return char.toUpperCase();
@@ -20,7 +25,6 @@ String.prototype.capitalizeAll = function () {
   if (!this) return '';
   return this.split('_').map((word) => word.capitalize()).join('_');
 }
-
 
 String.prototype.firstCharLowerCase = function () {
   return this.charAt(0).toLowerCase() + this.slice(1);

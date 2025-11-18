@@ -6,11 +6,11 @@ import { Card, CardContent, Stack, Typography } from '@mui/material';
 import { cleanUnderscore, notateNumber, prefix } from '@utility/helpers';
 import { items, ninjaExtraInfo } from '../../../data/website-data';
 import { addEquippedItems, findItemInInventory, getAllItems, mergeItemsByOwner } from '@parsers/items';
-import InfoIcon from '@mui/icons-material/Info';
 import Tooltip from '@components/Tooltip';
 import { Breakdown } from '@components/common/styles';
 import ItemDisplay from '@components/common/ItemDisplay';
 import { getGoldenFoodMulti } from '@parsers/misc';
+import { IconInfoCircleFilled } from '@tabler/icons-react';
 
 const breakpoints = [10000, 100000];
 const Beanstalk = () => {
@@ -30,13 +30,13 @@ const Beanstalk = () => {
     const totalItems = getAllItems(state?.characters, state?.account)
     const totalOwnedItems = mergeItemsByOwner([...(totalItems || []), ...(equippedItems || [])]);
     return findItemInInventory(totalOwnedItems, name)
-  }, [state?.account]);
+  }, [state?.characters, state?.account]);
   const allCharactersMulti = state?.characters?.map((character) => {
-    const multi = getGoldenFoodMulti(character, state?.account);
+    const multi = getGoldenFoodMulti(character, state?.account, state?.characters);
     return {
       name: character?.name,
-      bonus: multi,
-      value: notateNumber(Math.max(0, 100 * (multi - 1)), 'Small') + '%'
+      bonus: multi?.value,
+      value: notateNumber(Math.max(0, 100 * (multi?.value - 1)), 'Small') + '%'
     }
   });
   allCharactersMulti.sort((a, b) => a.bonus - b.bonus);
@@ -47,14 +47,14 @@ const Beanstalk = () => {
       title="Beanstalk | Idleon Toolbox"
       description="Keep track on your golden food bonuses on the beanstalk"
     />
-    <img src={`${prefix}etc/beanstalk_title.png`} alt={'title'}/>
-    <Stack direction={'row'} gap={1}>
+    <Stack direction={'row'} gap={1} alignItems={'center'}>
       <Typography variant={'h6'}>Total Golden Food Bonus: {highestMulti}%</Typography>
       <Tooltip title={<Breakdown breakdown={allCharactersMulti} titleStyle={{ width: 170 }}/>}>
-        <InfoIcon/>
+        <IconInfoCircleFilled/>
       </Tooltip>
     </Stack>
-    {!unlocked ? <Typography textAlign={'center'} mt={2} mb={2} variant={'caption'}>* You need to unlock beanstalk through W6
+    {!unlocked ? <Typography textAlign={'center'} mt={2} mb={2} variant={'caption'}>* You need to unlock beanstalk
+      through W6
       jade emporium to get the beanstalk bonuses</Typography> : null}
     <Stack mt={2} direction={'row'} gap={1} flexWrap={'wrap'}>
       {beanstalkGoldenFoods?.map((item) => {
@@ -65,7 +65,13 @@ const Beanstalk = () => {
           name: playerName,
           value: amount
         }));
-        breakdown.sort((a, b) => a?.value - b?.value);
+        breakdown.sort((a, b) => a.value - b.value);
+        const totalEntry = breakdown.reduce((sum, item) => sum + item.value, 0);
+        breakdown.push({
+          name: 'Total',
+          value: totalEntry
+        });
+
         return <Card key={rawName} sx={{ width: 270 }}>
           <CardContent>
             <Typography variant={'body1'}>{cleanUnderscore(displayName)}</Typography>
@@ -81,7 +87,7 @@ const Beanstalk = () => {
                     : ''}>{notateNumber(total)} / {notateNumber(breakpoints?.[rank])}</Typography> :
                   <Typography>Maxed</Typography>}
                 <Tooltip title={<Breakdown breakdown={breakdown} titleStyle={{ width: 170 }}/>}>
-                  <InfoIcon/>
+                  <IconInfoCircleFilled size={22}/>
                 </Tooltip>
               </Stack>
 

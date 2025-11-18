@@ -11,6 +11,8 @@ import Tooltip from '../../../components/Tooltip';
 import Box from '@mui/material/Box';
 import { TitleAndValue } from '@components/common/styles';
 import InfoIcon from '@mui/icons-material/Info';
+import { getGambitBonus } from '@parsers/world-5/caverns/gambit';
+import { getEventShopBonus } from '@parsers/misc';
 
 const Buildings = () => {
   const { state } = useContext(AppContext);
@@ -57,11 +59,13 @@ const Buildings = () => {
       const items = getMaterialCosts(itemReq, level, maxLevel, bonusInc, costCruncher);
       const buildCost = getBuildCost(state?.account?.towers, level, bonusInc, tower?.index);
       const atom = state?.account?.atoms?.atoms?.find(({ name }) => name === 'Carbon_-_Wizard_Maximizer');
-      let extraLevels = getExtraMaxLevels(state?.account?.towers?.totalLevels, maxLevel, atom?.level);
+      let extraLevels = getExtraMaxLevels(state?.account, maxLevel, atom?.level);
       maxLevel += extraLevels;
       const allBlueActive = state?.account?.lab.jewels?.slice(3, 7)?.every(({ active }) => active) ? 1 : 0;
       const jewelTrimmedSlot = state?.account?.lab.jewels?.[3]?.active ? 1 + allBlueActive : 0;
-      const trimmedSlots = jewelTrimmedSlot + (atomBonus ? 1 : 0);
+      const eventBonus = getEventShopBonus(state?.account, 14);
+      const gambitSlot = getGambitBonus(state?.account, 9);
+      const trimmedSlots = jewelTrimmedSlot + (atomBonus ? 1 : 0) + gambitSlot + eventBonus;
       const isSlotTrimmed = slot !== -1 && slot < trimmedSlots;
       if (isSlotTrimmed) {
         const timePassed = (new Date().getTime() - (state?.lastUpdated ?? 0)) / 1000;
@@ -93,7 +97,7 @@ const Buildings = () => {
   const sortedBuildings = useMemo(() => {
     if (sortBy === 'order') return b;
     else if (sortBy === 'time') {
-      const towers = JSON.parse(JSON.stringify(b));
+      const towers = structuredClone((b));
       return towers?.sort((a, b) => {
         const timeLeftA = a?.isSlotTrimmed ? a?.trimmedTimeLeft : a?.timeLeft;
         const timeLeftB = b?.isSlotTrimmed ? b?.trimmedTimeLeft : b?.timeLeft;
@@ -105,7 +109,7 @@ const Buildings = () => {
         return timeLeftA - timeLeftB;
       })
     } else if (sortBy === 'requirement') {
-      const towers = JSON.parse(JSON.stringify(b));
+      const towers = structuredClone((b));
       return towers?.sort((a, b) => {
         if (a?.isMaxed) {
           return 1;
@@ -188,7 +192,7 @@ const Buildings = () => {
             <Stack direction={'row'} justifyContent={'space-around'} flexWrap={'wrap'}>
               <Stack alignItems={'center'} sx={{ textAlign: 'center' }}>
                 <Typography>{cleanUnderscore(name)}</Typography>
-                <TowerIcon src={`${prefix}data/ConTower${tower?.index}.png`} alt=""/>
+                <TowerIcon src={`${prefix}data/ConTower${tower?.index}.png`} alt="tower-icon"/>
                 <Typography>Lv. {level} / {maxLevel}</Typography>
                 {isMaxed ? <Typography color={'success.light'}>Maxed</Typography> :
                   <Tooltip title={<>
@@ -203,14 +207,13 @@ const Buildings = () => {
                 <Stack>
                   {!isMaxed
                     ? <TitleAndValue title={'Non-trimmed'}
-                                     titleStyle={{ color: !isSlotTrimmed && '#81c784' }}
                                      value={<Timer type={'countdown'} staticTime={true}
                                                    placeholder={'Ready!'}
                                                    date={new Date().getTime() + timeLeft}
                                                    lastUpdated={state?.lastUpdated}/>}/>
                     : null}
                   {!isMaxed
-                    ? <TitleAndValue title={'Trimmed'} titleStyle={{ color: isSlotTrimmed && '#81c784' }}
+                    ? <TitleAndValue title={'Trimmed'}
                                      value={<Timer type={'countdown'}
                                                    placeholder={'Ready!'}
                                                    staticTime={true}
@@ -239,7 +242,7 @@ const ReqItemsDisplay = ({ title, isMaxed, items }) => {
     <Stack direction={'row'} gap={1}>
       {items?.map(({ rawName, amount }, itemIndex) => {
         return <Stack alignItems={'center'} key={`${name}-${rawName}-${itemIndex}`}>
-          <ItemIcon src={`${prefix}data/${rawName}.png`} alt=""/>
+          <ItemIcon src={`${prefix}data/${rawName}.png`} alt="item-icon"/>
           <Typography>{notateNumber(amount, 'Big')}</Typography>
         </Stack>
       })}

@@ -1,6 +1,13 @@
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Divider, Stack, Typography } from '@mui/material';
 import Tooltip from '../../../../Tooltip';
-import { cleanUnderscore, isProd, kFormatter, notateNumber, prefix } from '../../../../../utility/helpers';
+import {
+  cleanUnderscore,
+  isProd,
+  kFormatter,
+  notateNumber,
+  numberWithCommas,
+  prefix
+} from '../../../../../utility/helpers';
 import React from 'react';
 import styled from '@emotion/styled';
 
@@ -22,19 +29,60 @@ const indexSx = {
   backgroundColor: 'blue'
 };
 
-const ConstructionBoard = ({ view, board, showTooltip, setOutsideHighlight, outsideHighlight }) => {
+const CogTooltip = ({ character, index, currentAmount, requiredAmount, cog, affectedBy, affects, roundedValues }) => {
+  return (
+    <>
+      {character ? <Typography sx={{ fontWeight: 'bold' }}>{character}</Typography> : null}
+      {currentAmount < requiredAmount ? (
+        <Typography>
+          {kFormatter(currentAmount, 2)} / {kFormatter(requiredAmount, 2)} ({kFormatter((currentAmount / requiredAmount) * 100, 2)}%)
+        </Typography>
+      ) : null}
+      {Object.values(cog?.stats)?.map(({ name, value }, index) =>
+        name ? (
+          <>
+            {index > 0 ? <Divider sx={{my:1}}/> : null}
+            <Typography variant="body2" key={`${name}-${index}`}>
+              {roundedValues ? notateNumber(value, 'Big') : numberWithCommas(value.toFixed(2).replace('.00', ''))}
+              {cleanUnderscore(name)}
+            </Typography>
+
+          </>
+        ) : null
+      )}
+      <Divider sx={{ my: 1 }}/>
+      <Typography variant="body2">Index: {index}</Typography>
+      {affectedBy?.length > 0 && (
+        <Typography variant="body2">Affected by: {affectedBy.join(', ')}</Typography>
+      )}
+      {affects?.length > 0 && (
+        <Typography variant="body2">Affects: {affects.join(', ')}</Typography>
+      )}
+    </>
+  );
+};
+
+const ConstructionBoard = ({ view, board, showTooltip, setOutsideHighlight, outsideHighlight, roundedValues }) => {
   return <Box
     mt={3}
     sx={{
       display: 'grid',
       gap: '8px',
       gridTemplateColumns: { xs: 'repeat(8, minmax(45px, 1fr))', md: 'repeat(12, minmax(45px, 1fr))' },
-      gridTemplateRows: { xs: 'repeat(8, minmax(45px, 1fr))', md: 'repeat(8, minmax(45px, 1fr))' },
+      gridTemplateRows: { xs: 'repeat(8, minmax(45px, 1fr))', md: 'repeat(8, minmax(45px, 1fr))' }
     }}
   >
     {board?.map((slot, index) => {
-      const { currentAmount, requiredAmount, flagPlaced, cog } = slot;
-      const { a: buildRate, e: buildPercent, b: exp, d: secondExp, c: flaggyRate, j: classExp, f: playerExp } = cog?.stats;
+      const { currentAmount, requiredAmount, flagPlaced, cog, affectedBy, affects } = slot;
+      const {
+        a: buildRate,
+        e: buildPercent,
+        b: exp,
+        d: secondExp,
+        c: flaggyRate,
+        j: classExp,
+        f: playerExp
+      } = cog?.stats;
       const filled = (currentAmount / requiredAmount) * 100;
       const rest = 100 - filled;
       return (
@@ -49,6 +97,7 @@ const ConstructionBoard = ({ view, board, showTooltip, setOutsideHighlight, outs
              onMouseLeave={() => typeof setOutsideHighlight === 'function' && setOutsideHighlight(null)}
         >
           <Tooltip title={showTooltip ? <CogTooltip {...slot} index={index}
+                                                    roundedValues={roundedValues}
                                                     character={cog?.name?.includes('Player')
                                                       ? cog?.name?.split('Player_')[1]
                                                       : ''}/> : ''}>
@@ -88,28 +137,6 @@ const ConstructionBoard = ({ view, board, showTooltip, setOutsideHighlight, outs
       );
     })}
   </Box>
-};
-
-const CogTooltip = ({ character, index, currentAmount, requiredAmount, cog }) => {
-  return (
-    <>
-      {character ? <Typography sx={{ fontWeight: 'bold' }}>{character}</Typography> : null}
-      {currentAmount < requiredAmount ? (
-        <Typography>
-          {kFormatter(currentAmount, 2)} / {kFormatter(requiredAmount, 2)} ({kFormatter((currentAmount / requiredAmount) * 100, 2)}%)
-        </Typography>
-      ) : null}
-      {Object.values(cog?.stats)?.map(({ name, value }, index) =>
-        name ? (
-          <div key={`${name}-${index}`}>
-            {notateNumber(value, 'Big')}
-            {cleanUnderscore(name)}
-          </div>
-        ) : null
-      )}
-      index: {index}
-    </>
-  );
 };
 
 const SlotBackground = styled(Stack)`

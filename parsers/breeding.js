@@ -1,22 +1,30 @@
 import { arenaBonuses, monsters, petGenes, petStats, petUpgrades, randomList, territory } from '../data/website-data';
-import { tryToParse } from '../utility/helpers';
+import { createRange, tryToParse } from '../utility/helpers';
 import { getBubbleBonus, getVialsBonusByEffect } from './alchemy';
 import { getStampsBonusByEffect } from './stamps';
 import { getJewelBonus, getLabBonus } from './lab';
 import { getMealsBonusByEffectOrStat, getTotalKitchenLevels } from './cooking';
 import { getAchievementStatus } from './achievements';
+import { getStarSignBonus } from '@parsers/starSigns';
+import { getWinnerBonus } from '@parsers/world-6/summoning';
+import { getLampBonus } from '@parsers/world-5/caverns/the-lamp';
+import { getUpgradeVaultBonus } from '@parsers/misc/upgradeVault';
+import { getCharacterByHighestSkillLevel } from '@parsers/misc';
+import { CLASSES, getTalentBonus } from '@parsers/talents';
+import { getArcadeBonus } from '@parsers/arcade';
 
-export const getBreeding = (idleonData, account) => {
+export const getBreeding = (idleonData, account, processedData) => {
   const breedingRaw = tryToParse(idleonData?.Breeding) || idleonData?.Breeding;
   const petsRaw = tryToParse(idleonData?.Pets) || idleonData?.Pets;
   const petsStoredRaw = tryToParse(idleonData?.PetsStored) || idleonData?.PetsStored;
   const territoryRaw = tryToParse(idleonData?.Territory) || idleonData?.Territory;
   const cookingRaw = tryToParse(idleonData?.Cooking) || idleonData?.Cooking;
-  return parseBreeding(breedingRaw, territoryRaw, petsRaw, petsStoredRaw, cookingRaw, account);
+  return parseBreeding(breedingRaw, territoryRaw, petsRaw, petsStoredRaw, cookingRaw, account, processedData);
 }
 
-const parseBreeding = (breedingRaw, territoryRaw, petsRaw, petsStoredRaw, cookingRaw, account) => {
+const parseBreeding = (breedingRaw, territoryRaw, petsRaw, petsStoredRaw, cookingRaw, account, processedData) => {
   const eggs = breedingRaw?.[0];
+  const genetics = breedingRaw?.[3]?.slice(0, 4)
   const deadCells = breedingRaw?.[3]?.[8];
   const speciesUnlocks = breedingRaw?.[1];
   const petUpgradesList = breedingRaw?.[2]?.map((upgradeLevel, index) => {
@@ -36,16 +44,26 @@ const parseBreeding = (breedingRaw, territoryRaw, petsRaw, petsStoredRaw, cookin
   });
   const petsLevels = breedingRaw?.slice(4, 8);
   const shinyPetsLevels = breedingRaw?.slice(22, 26);
+  const breedingPetsLevels = breedingRaw?.slice(13, 17);
   const baseFenceSlots = breedingRaw?.[2]?.[4];
   const fenceSlots = Math.round(5 + baseFenceSlots + 2 * (account?.gemShopPurchases?.find((value, index) => index === 125) ?? 0));
-  const rawFencePets = petsRaw?.slice(0, fenceSlots)
-  const fencePetsObject = rawFencePets?.reduce((res, [petName, , , color]) => {
-    if (color === 0) return res;
-    return {
-      ...res,
-      [petName]: res?.[petName] ? res?.[petName] + 1 : 1
+  const rawFencePets = petsRaw?.slice(0, fenceSlots);
+  const fencePetsObject = rawFencePets?.reduce((res, [petName, type]) => {
+    if (!res[petName]) {
+      res[petName] = {
+        amount: 0,
+        shiny: 0,
+        breedability: 0
+      };
     }
+
+    res[petName].amount += 1;
+    if (type === 4) res[petName].breedability += 1;
+    if (type === 5) res[petName].shiny += 1;
+
+    return res;
   }, {});
+
   const foragingRounds = territoryRaw?.map(([, round]) => round);
   const currentProgress = territoryRaw?.map(([progress]) => progress);
   const teams = petsRaw?.slice(27)?.map(([name, x1, x2, x3]) => {
@@ -58,12 +76,13 @@ const parseBreeding = (breedingRaw, territoryRaw, petsRaw, petsStoredRaw, cookin
     const team = teams?.[index] || [];
     const previousTeam = teams?.[index - 1] || [];
     const nextTeam = teams?.[index + 1] || [];
+    const vaultBonus = 1 + getUpgradeVaultBonus(account?.upgradeVault?.upgrades, 56) / 100;
     const forageSpeed = team?.reduce((sum, teamMember, position) => sum + getForageSpeed({
       team,
       previousTeam,
       teamMember,
       position
-    }), 0);
+    }), 0) * vaultBonus;
     const teamPower = team?.reduce((sum, teamMember) => sum + getFightPower(teamMember), 0);
     const anyCombats = team?.some((teamMember) => teamMember?.gene?.abilityType === 0);
     const flashies = anyCombats ? 0 : team?.filter((teamMember) => teamMember?.gene?.name === 'Flashy')?.length;
@@ -93,25 +112,26 @@ const parseBreeding = (breedingRaw, territoryRaw, petsRaw, petsStoredRaw, cookin
   const pets = petStats?.map((petList, worldIndex) => {
     const speciesUnlocked = speciesUnlocks?.[worldIndex];
     return petList?.map((pet, petIndex) => {
-      let shinyLevel = new Array(19).fill(1)?.reduce((sum, _, index) => shinyPetsLevels?.[worldIndex]?.[petIndex] > Math.floor((1 + Math.pow(index + 1, 1.6)) * Math.pow(1.7, index + 1))
-        ? index + 2
-        : sum, 0)
-      shinyLevel = shinyPetsLevels?.[worldIndex]?.[petIndex] === 0 ? 0 : shinyLevel === 0 ? 1 : shinyLevel;
+      const shinyLevel = getShinyLevel(shinyPetsLevels, worldIndex, petIndex);
+      // Tome calc
       totalShinyLevels += shinyLevel === 0 ? 1 : shinyLevel;
-      const goal = Math.floor((1 + Math.pow(shinyLevel, 1.6)) * Math.pow(1.7, shinyLevel));
+
+      const shinyGoal = Math.floor((1 + Math.pow(shinyLevel, 1.6)) * Math.pow(1.7, shinyLevel));
       const passiveValue = Math.round(pet?.baseValue * shinyLevel);
       const petInfo = {
         ...pet,
         world: 'World' + (worldIndex + 1),
         level: petsLevels?.[worldIndex]?.[petIndex],
         shinyLevel,
-        progress: shinyPetsLevels?.[worldIndex]?.[petIndex],
-        goal,
+        shinyProgress: shinyPetsLevels?.[worldIndex]?.[petIndex],
+        breedingProgress: breedingPetsLevels?.[worldIndex]?.[petIndex],
+        shinyGoal,
         rawPassive: pet?.passive,
         passive: pet?.passive?.replace('{', passiveValue),
         passiveValue,
         unlocked: petIndex < speciesUnlocked
       }
+
       if (passivesTotals?.[pet?.passive]) {
         passivesTotals[pet?.passive] += passiveValue;
       } else if (passiveValue > 0) {
@@ -123,10 +143,13 @@ const parseBreeding = (breedingRaw, territoryRaw, petsRaw, petsStoredRaw, cookin
       return petInfo;
     })
   });
+
   return {
+    eggsPowerRange: getEggsPowerRange(processedData?.charactersData),
     passivesTotals,
     storedPets,
     eggs,
+    genetics,
     deadCells,
     speciesUnlocks,
     fencePets,
@@ -144,6 +167,13 @@ const parseBreeding = (breedingRaw, territoryRaw, petsRaw, petsStoredRaw, cookin
   };
 }
 
+const getShinyLevel = (shinyPetsLevels, worldIndex, petIndex) => {
+  const shinyLevel = new Array(19).fill(1)?.reduce((sum, _, index) => shinyPetsLevels?.[worldIndex]?.[petIndex] > Math.floor((1 + Math.pow(index + 1, 1.6)) * Math.pow(1.7, index + 1))
+    ? index + 2
+    : sum, 0)
+  return shinyPetsLevels?.[worldIndex]?.[petIndex] === 0 ? 0 : shinyLevel === 0 ? 1 : shinyLevel;
+}
+
 export const addBreedingChance = (idleonData, account) => {
   const breedingRaw = tryToParse(idleonData?.Breeding) || idleonData?.Breeding;
   let totalBreedabilityLv = 0;
@@ -151,9 +181,13 @@ export const addBreedingChance = (idleonData, account) => {
     return petList?.map((pet, petIndex) => {
       const totalKitchenLevels = getTotalKitchenLevels(account?.cooking?.kitchens)
       const breedingMultipliers = getBreedingMulti(account, breedingRaw, worldIndex, petIndex, account?.breeding?.unlockedBreedingMulti, totalKitchenLevels);
-      totalBreedabilityLv += Math.min(9, Math.floor(Math.pow(breedingMultipliers?.second - 1, .8)) + 1);
+      const breedingLevel = Math.min(9, Math.floor(Math.pow(breedingMultipliers?.second - 1, .8)) + 1);
+      const breedingGoal = Math.pow(Math.pow(Math.E, Math.pow(breedingLevel, 1.25)), 1 / 0.725) - 1;
+      totalBreedabilityLv += breedingLevel;
       return {
         ...pet,
+        breedingLevel,
+        breedingGoal,
         breedingMultipliers
       }
     })
@@ -164,6 +198,7 @@ export const addBreedingChance = (idleonData, account) => {
     totalBreedabilityLv
   }
 }
+
 const getBaseBreedChance = (breedingRaw, worldIndex, petIndex) => {
   const baseChances = randomList[54].split(' ');
   return petIndex + 2 > breedingRaw?.[1]?.[worldIndex]
@@ -195,11 +230,9 @@ const getBreedingMulti = (account, breedingRaw, worldIndex, petIndex, unlockedBr
   const baseBreedingChance = getBaseBreedChance(breedingRaw, worldIndex, petIndex);
   const gemShopBonus = account?.gemShopPurchases?.find((value, index) => index === 119) ?? 0;
   const vialBonus = getVialsBonusByEffect(account?.alchemy?.vials, null, 'NewPet');
-  const bubbleBonus = getBubbleBonus(account?.alchemy?.bubbles, 'kazam', 'PETTING_THE_RIFT', false);
+  const bubbleBonus = getBubbleBonus(account, 'PETTING_THE_RIFT', false);
   const stampBonus = getStampsBonusByEffect(account, 'New_Pet_Chance');
-  const spelunkerObolMulti = getLabBonus(account?.lab?.labBonuses, 8); // gem multi
-  const blackDiamondRhinestone = getJewelBonus(account?.lab?.jewels, 16, spelunkerObolMulti);
-  const mealBonus = getMealsBonusByEffectOrStat(account, null, 'Npet', blackDiamondRhinestone);
+  const mealBonus = getMealsBonusByEffectOrStat(account, null, 'Npet');
   const breedingBonus = calcUpgradeBonus(account?.breeding?.petUpgrades?.[9], 9, account);
   const totalChance = (1 + (10 * gemShopBonus) / 100)
     * (1 + (vialBonus
@@ -232,13 +265,22 @@ export const getShinyBonus = (pets, passiveName) => {
   }) => innerSum + (passive.includes(passiveName) && passiveValue), 0), 0);
 }
 
-export const getTimeToLevel = (pet, shinyMulti, copies, shinyLevel) => {
-  if (pet?.shinyLevel === shinyLevel) return 0;
+export const getTimeToLevel = (pet, multi, copies, targetLevel, isShiny) => {
+  const currentLevel = isShiny ? pet?.shinyLevel : pet?.breedingLevel;
+  const currentProgress = isShiny ? pet?.shinyProgress : pet?.breedingProgress;
+
+  if (currentLevel === targetLevel) return 0;
+
   let goal = 0;
-  for (let i = pet?.shinyLevel; i < shinyLevel; i++) {
-    goal += Math.floor((1 + Math.pow(i, 1.6)) * Math.pow(1.7, i));
+  for (let i = currentLevel; i < targetLevel; i++) {
+    if (isShiny) {
+      goal += Math.floor((1 + Math.pow(i, 1.6)) * Math.pow(1.7, i));
+    } else {
+      goal += Math.pow(Math.pow(Math.E, Math.pow(i, 1.25)), 1 / 0.725) - 1
+    }
   }
-  return ((goal - pet?.progress) / shinyMulti / (copies || 1)) * 8.64e+7;
+
+  return ((goal - currentProgress) / multi / (copies || 1)) * 8.64e+7;
 }
 
 export const calcUpgradeBonus = (upgrade, upgradeIndex, account) => {
@@ -311,4 +353,93 @@ export const calcHighestPower = (breeding) => {
   const teams = breeding?.territories?.reduce((result, { team }) => ([...result, ...team]), []);
   const mappedPets = [...(breeding?.storedPets || []), ...teams].map(({ power }) => power);
   return Math.max(...mappedPets);
+}
+
+export const calcBreedabilityMulti = (account, characters) => {
+  const breedingBonus = calcUpgradeBonus(account?.breeding?.petUpgrades?.[3], 3, account);
+  const starSignBonus = characters?.reduce((acc, character) => {
+    const bonus = getStarSignBonus(character, account, 'Breedable_Spd') ?? 0;
+    if (bonus > acc) {
+      return bonus;
+    }
+    return acc;
+  }, 0);
+  const mealBonus = getMealsBonusByEffectOrStat(account, null, 'Breed')
+  const lampBonus = getLampBonus({ holesObject: account?.hole?.holesObject, t: 0, i: 1 });
+  const arcadeBonus = getArcadeBonus(account?.arcade?.shop, 'Breedability_Rate')?.bonus;
+
+  return {
+    value: (1 + (breedingBonus +
+        (mealBonus
+          + (20 * getAchievementStatus(account?.achievements, 218)
+            + starSignBonus))) / 100)
+      * (1 + account?.farming?.cropDepot?.shiny?.value / 100)
+      * (1 + lampBonus / 100)
+      * (1 + arcadeBonus / 100),
+    breakdown: [
+      { name: 'Breeding bonus', value: breedingBonus / 100 },
+      { name: 'Meal bonus', value: mealBonus / 100 },
+      { name: 'Achievement bonus', value: 20 * getAchievementStatus(account?.achievements, 218) / 100 },
+      { name: 'Starsign bonus', value: starSignBonus / 100 },
+      { name: 'Crop bonus', value: account?.farming?.cropDepot?.shiny?.value / 100 },
+      { name: 'Lamp bonus', value: lampBonus / 100 },
+      { name: 'Arcade bonus', value: arcadeBonus / 100 }
+    ]
+  }
+}
+export const calcShinyLvMulti = (account, characters) => {
+  const spelunkerObolMulti = getLabBonus(account?.lab.labBonuses, 8); // gem multi
+  const emeraldUlthuriteBonus = getJewelBonus(account?.lab.jewels, 15, spelunkerObolMulti);
+  const fasterShinyLevelBonus = getShinyBonus(account?.breeding?.pets, 'Faster_Shiny_Pet_Lv_Up_Rate');
+  const starSign = characters?.reduce((acc, character) => {
+    const bonus = getStarSignBonus(character, account, 'Shiny_Pet_LV_spd') ?? 0;
+    if (bonus > acc) {
+      return bonus;
+    }
+    return acc;
+  }, 0);
+  const summoningBonus = getWinnerBonus(account, '<x Shiny EXP', false);
+  const lampBonus = getLampBonus({ holesObject: account?.hole?.holesObject, t: 0, i: 1 });
+  const breedingBonus = calcUpgradeBonus(account?.breeding?.petUpgrades?.[12], 12, account);
+
+  return {
+    value: (1 + (emeraldUlthuriteBonus
+        + (fasterShinyLevelBonus
+          + (account?.farming?.cropDepot?.shiny?.value
+            + starSign + breedingBonus))) / 100)
+      * (1 + summoningBonus / 100)
+      * (1 + lampBonus / 100),
+    breakdown: [
+      { name: 'Jewel bonus', value: emeraldUlthuriteBonus / 100 },
+      { name: 'Shiny bonus', value: fasterShinyLevelBonus / 100 },
+      { name: 'Starsign bonus', value: starSign / 100 },
+      { name: 'Crop bonus', value: account?.farming?.cropDepot?.shiny?.value / 100 },
+      { name: 'Summoning bonus', value: summoningBonus / 100 },
+      { name: 'Breeding bonus', value: breedingBonus / 100 },
+      { name: 'Lamp bonus', value: lampBonus / 100 }
+    ]
+  };
+}
+
+export const getEggsPowerRange = (characters) => {
+  const highestBreedingBM = getCharacterByHighestSkillLevel(characters, CLASSES.Wind_Walker, 'breeding');
+  const breedingLevel = highestBreedingBM?.skillsInfo?.breeding?.level;
+  const baseTalentBonus = getTalentBonus(highestBreedingBM?.flatTalents, 'CURVITURE_OF_THE_PAW');
+  const base = Math.pow(4 * breedingLevel + Math.pow(breedingLevel / 2, 3), 0.85);
+  const talentBonus = Math.min(2.1, Math.max(1, 1 + baseTalentBonus));
+  const breedingBonus = Math.min(1.2 + breedingLevel / 12, 4);
+  return createRange(0, 10).map((eggLevel) => {
+    const eggLvScale = 0.2 * eggLevel + 0.3 * Math.floor((eggLevel + 1) / 4) + 1;
+
+    return {
+      minPower: base
+        * talentBonus
+        * eggLvScale
+        * (breedingBonus * Math.pow(2.71828, -10 * Math.max(0.1, 1 - ((eggLevel + 4) / 12) * 0.9)) + 1),
+      maxPower: base
+        * talentBonus
+        * eggLvScale
+        * (breedingBonus * Math.pow(2.71828, -10 * 0) + 1)
+    }
+  })
 }

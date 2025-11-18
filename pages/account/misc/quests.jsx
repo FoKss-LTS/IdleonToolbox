@@ -1,10 +1,11 @@
 import React, { useContext, useEffect, useState } from 'react';
 import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter';
-import { Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Container, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import WorldQuest from 'components/account/Misc/WorldQuest';
 import { prefix } from 'utility/helpers';
 import { AppContext } from 'components/common/context/AppProvider';
 import { NextSeo } from 'next-seo';
+import { calcTotalQuestCompleted } from '@parsers/misc';
 
 const Quests = () => {
   const { state } = useContext(AppContext);
@@ -16,7 +17,7 @@ const Quests = () => {
     let filteredWorldQuests = {};
     for (const [world, worldQuests] of Object.entries(state?.account?.quests)) {
       filteredWorldQuests[world] = worldQuests.map(({ npcQuests, ...rest }) => {
-        let clonedNpcQuests = JSON.parse(JSON.stringify(npcQuests));
+        let clonedNpcQuests = structuredClone((npcQuests));
         let completedQuests = 0;
         let inProgressQuests = 0;
         for (const [questIndex, value] of Object.entries(clonedNpcQuests)) {
@@ -25,12 +26,11 @@ const Quests = () => {
           clonedNpcQuests[questIndex] = {
             ...value,
             completed,
-            progress,
+            progress
           };
           if (completed.length === filteredCharacters?.length) {
             completedQuests++;
-          }
-          else if (completed.length > 0) {
+          } else if (completed.length > 0) {
             completedQuests += 0.5;
           }
           if (
@@ -46,18 +46,16 @@ const Quests = () => {
         if (completedQuests === 0) {
           if (inProgressQuests > 0) {
             questsStatus = 0;
-          }
-          else {
+          } else {
             questsStatus = -1;
           }
-        }
-        else {
+        } else {
           questsStatus = completedQuests === npcQuests?.length ? 1 : 0;
         }
         return {
           ...rest,
           npcQuests: clonedNpcQuests,
-          questsStatus,
+          questsStatus
         };
       });
     }

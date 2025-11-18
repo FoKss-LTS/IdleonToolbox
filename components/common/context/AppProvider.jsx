@@ -1,12 +1,10 @@
-import { createContext, useEffect, useMemo, useReducer, useState } from 'react';
-import { checkUserStatus, signInWithToken, subscribe, userSignOut } from '../../../firebase';
-// import { parseData } from '../../../parsers';
+import { createContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { checkUserStatus, signInWithCustom, signInWithToken, subscribe, userSignOut } from '../../../firebase';
 import demoJson from '../../../data/raw.json';
 
 import { useRouter } from 'next/router';
 import useInterval from '../../hooks/useInterval';
 import { getUserToken } from '../../../logins/google';
-import { CircularProgress, Stack } from '@mui/material';
 import { offlineTools } from '../NavBar/AppDrawer/ToolsDrawer';
 import { geAppleStatus } from '../../../logins/apple';
 import { getProfile } from '../../../services/profiles';
@@ -14,47 +12,34 @@ import { getProfile } from '../../../services/profiles';
 export const AppContext = createContext({});
 
 function appReducer(state, action) {
-  switch (action.type) {
-    case 'login': {
-      return { ...state, ...action.data };
-    }
-    case 'data': {
-      return { ...state, ...action.data };
-    }
-    case 'logout': {
-      return { characters: null, account: null, signedIn: false, emailPassword: null, appleLogin: null };
-    }
-    case 'displayedCharacters': {
-      return { ...state, displayedCharacters: action.data };
-    }
-    case 'filters': {
-      return { ...state, filters: action.data };
-    }
-    case 'pinnedPages': {
-      return { ...state, pinnedPages: action.data };
-    }
-    case 'planner': {
-      return { ...state, planner: action.data };
-    }
-    case 'trackers': {
-      return { ...state, trackers: action.data };
-    }
-    case 'godPlanner': {
-      return { ...state, godPlanner: action.data };
-    }
-    case 'loginError': {
-      return { ...state, loginError: action.data };
-    }
-    case 'showRankOneOnly': {
-      return { ...state, showRankOneOnly: action.data }
-    }
-    case 'showUnmaxedBoxesOnly': {
-      return { ...state, showUnmaxedBoxesOnly: action.data }
-    }
-    default: {
-      throw new Error(`Unhandled action type: ${action.type}`);
-    }
+  const actionHandlers = {
+    login: () => ({ ...state, ...action.data }),
+    data: () => ({ ...state, ...action.data }),
+    logout: () => ({
+      characters: null,
+      account: null,
+      signedIn: false,
+      emailPassword: null,
+      appleLogin: null
+    }),
+    displayedCharacters: () => ({ ...state, displayedCharacters: action.data }),
+    filters: () => ({ ...state, filters: action.data }),
+    pinnedPages: () => ({ ...state, pinnedPages: action.data }),
+    planner: () => ({ ...state, planner: action.data }),
+    trackers: () => ({ ...state, trackers: action.data }),
+    godPlanner: () => ({ ...state, godPlanner: action.data }),
+    loginError: () => ({ ...state, loginError: action.data }),
+    showRankOneOnly: () => ({ ...state, showRankOneOnly: action.data }),
+    showUnmaxedBoxesOnly: () => ({ ...state, showUnmaxedBoxesOnly: action.data }),
+    setLoading: () => ({ ...state, isLoading: action.data })
+  };
+
+  const handler = actionHandlers[action.type];
+  if (!handler) {
+    throw new Error(`Unhandled action type: ${action.type}`);
   }
+
+  return handler();
 }
 
 const AppProvider = ({ children }) => {
@@ -64,98 +49,180 @@ const AppProvider = ({ children }) => {
   const router = useRouter();
   const [authCounter, setAuthCounter] = useState(0);
   const [waitingForAuth, setWaitingForAuth] = useState(false);
-  const [listener, setListener] = useState({ func: null });
+  const unsubscribeRef = useRef(null);
 
   function init() {
-    if (typeof window !== 'undefined') {
-      const filters = localStorage.getItem('filters');
-      const pinnedPages = localStorage.getItem('pinnedPages') || [];
-      const displayedCharacters = localStorage.getItem('displayedCharacters');
-      const trackers = localStorage.getItem('trackers');
-      const godPlanner = localStorage.getItem('godPlanner');
-      const manualImport = localStorage.getItem('manualImport') || false;
-      const lastUpdated = localStorage.getItem('lastUpdated') || false;
-      const planner = localStorage.getItem('planner');
-      const objects = [{ pinnedPages }, { filters }, { displayedCharacters }, { planner }, { manualImport },
-        { lastUpdated },
-        { trackers }, { godPlanner }, { showRankOneOnly: false }, { showUnmaxedBoxesOnly: false }];
-      return objects.reduce((res, obj) => {
-        try {
-          const [objName, objValue] = Object.entries(obj)?.[0];
-          const parsed = JSON.parse(objValue);
-          return { ...res, [objName]: parsed };
-        } catch (err) {
-          return res;
+    if (typeof window === 'undefined') return {};
+
+    // Define default values for state properties
+    const defaultState = {
+      showRankOneOnly: false,
+      showUnmaxedBoxesOnly: false,
+      isLoading: true
+    };
+
+    // Define localStorage keys to load
+    const storageKeys = [
+      'filters',
+      'pinnedPages',
+      'displayedCharacters',
+      'trackers',
+      'godPlanner',
+      'manualImport',
+      'lastUpdated',
+      'planner'
+    ];
+
+    // Load and parse values from localStorage
+    const loadedState = storageKeys.reduce((state, key) => {
+      try {
+        const value = localStorage.getItem(key);
+        if (value) {
+          state[key] = JSON.parse(value);
         }
-      }, {});
+      } catch (err) {
+        console.warn(`Failed to parse ${key} from localStorage:`, err);
+      }
+      return state;
+    }, {});
+
+    // Set default value for pinnedPages if not loaded
+    if (!loadedState.pinnedPages) {
+      loadedState.pinnedPages = [];
     }
+
+    return {
+      ...defaultState,
+      ...loadedState
+    };
   }
 
   useEffect(() => {
     if (!router.isReady) return;
+
+    // Handle loading profile data from API
     const handleProfile = async () => {
       try {
         const content = await getProfile({ mainChar: router?.query?.profile });
         if (!content) {
           throw new Error('Failed to load data from profile api');
         }
-        let parsedData;
+
         const { parseData } = await import('@parsers/index');
+        let parsedData;
+
+        // Parse data based on content format
         if (!Object.keys(content).includes('serverVars')) {
           parsedData = parseData(content);
         } else {
           const { data, charNames, companion, guildData, serverVars, lastUpdated, accountCreateTime } = content;
           parsedData = parseData(data, charNames, companion, guildData, serverVars, accountCreateTime);
-          parsedData = { ...parsedData, lastUpdated: lastUpdated ? lastUpdated : new Date().getTime() }
+          const timestamp = lastUpdated || new Date().getTime();
+
+          parsedData = { ...parsedData, lastUpdated: timestamp };
+
+          // Store raw data in localStorage
           localStorage.setItem('rawJson', JSON.stringify({
             data,
             charNames,
             guildData,
             serverVars,
-            lastUpdated: lastUpdated ? lastUpdated : new Date().getTime()
+            lastUpdated: timestamp
           }));
         }
-        localStorage.setItem('manualImport', JSON.stringify(false));
-        const lastUpdated = parsedData?.lastUpdated || new Date().getTime();
-        let importData = {
-          ...parsedData,
-          profile: true,
-          manualImport: false,
-          signedIn: false,
-          lastUpdated
-        };
-        dispatch({ type: 'data', data: { ...importData, lastUpdated } })
-      } catch (e) {
-        console.error('Failed to load data from profile api', e);
-        router.push({ pathname: '/', query: router.query });
-      }
-    }
 
-    let unsubscribe;
-    (async () => {
+        // Update localStorage and state
+        localStorage.setItem('manualImport', 'false');
+        const lastUpdated = parsedData?.lastUpdated || new Date().getTime();
+        const user = await checkUserStatus();
+
+        dispatch({
+          type: 'data',
+          data: {
+            ...parsedData,
+            profile: true,
+            manualImport: false,
+            signedIn: !!user,
+            lastUpdated,
+            isLoading: false
+          }
+        });
+      } catch (err) {
+        console.error('Failed to load data from profile api', err);
+        router.push({ pathname: '/', query: router.query });
+        dispatch({
+          type: 'data',
+          data: {
+            isLoading: false
+          }
+        })
+      }
+    };
+
+    // Main initialization logic
+    const initializeApp = async () => {
       if (router?.query?.profile) {
-        await handleProfile()
+        await handleProfile();
       } else if (router?.query?.demo) {
-        const { data, charNames, companion, guildData, serverVars, lastUpdated } = demoJson;
-        const { parseData } = await import('@parsers/index');
-        let parsedData = parseData(data, charNames, companion, guildData, serverVars);
-        parsedData = { ...parsedData, lastUpdated: lastUpdated ? lastUpdated : new Date().getTime() };
-        dispatch({ type: 'data', data: { ...parsedData, lastUpdated, demo: true } });
+        await handleDemoData();
       } else if (!state?.signedIn) {
+        await handleUnauthenticatedUser();
+      } else {
+        dispatch({ type: 'setLoading', data: false });
+      }
+    };
+
+    // Handle demo data
+    const handleDemoData = async () => {
+      const { data, charNames, companion, guildData, serverVars, lastUpdated } = demoJson;
+      const { parseData } = await import('@parsers/index');
+      const timestamp = lastUpdated || new Date().getTime();
+
+      const parsedData = parseData(data, charNames, companion, guildData, serverVars);
+      dispatch({
+        type: 'data',
+        data: {
+          ...parsedData,
+          lastUpdated: timestamp,
+          demo: true,
+          isLoading: false
+        }
+      });
+    };
+
+    // Handle unauthenticated user
+    const handleUnauthenticatedUser = async () => {
+      try {
         const user = await checkUserStatus();
         if (!state?.account && user) {
-          unsubscribe = await subscribe(user?.uid, user?.accessToken, handleCloudUpdate);
-          setListener({ func: unsubscribe });
+          const unsub = await subscribe(user?.uid, user?.accessToken, handleCloudUpdate);
+          unsubscribeRef.current = unsub;
         } else {
-          if (router.pathname === '/' || checkOfflineTool() || router.pathname === '/data' || router.pathname === '/leaderboards') return;
-          router.push({ pathname: '/', query: router?.query });
-        }
-      }
-    })();
+          const isAllowedPath = router.pathname === '/' ||
+            checkOfflineTool() ||
+            router.pathname === '/data' ||
+            router.pathname === '/statistics' ||
+            router.pathname === '/leaderboards';
 
+          if (!isAllowedPath) {
+            router.push({ pathname: '/', query: router?.query });
+          }
+          dispatch({ type: 'setLoading', data: false });
+        }
+      } catch (error) {
+        console.error(error);
+        dispatch({ type: 'setLoading', data: false });
+        logout()
+      }
+    };
+
+    initializeApp();
+
+    // Cleanup subscription
     return () => {
-      typeof unsubscribe === 'function' && unsubscribe();
-      typeof listener.func === 'function' && listener.func();
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
     };
   }, []);
 
@@ -206,7 +273,12 @@ const AppProvider = ({ children }) => {
       try {
         if (state?.signedIn) return;
         let id_token, uid, accessToken;
-        if (state?.loginType === 'email') {
+        if (state?.loginType === 'steam') {
+          const userData = await signInWithCustom(state?.loginData?.token, dispatch);
+          accessToken = userData?.accessToken;
+          id_token = userData?.accessToken;
+          uid = userData?.uid;
+        } else if (state?.loginType === 'email') {
           id_token = state?.loginData?.accessToken;
           uid = state?.loginData?.uid;
           accessToken = id_token;
@@ -228,7 +300,8 @@ const AppProvider = ({ children }) => {
           }
         }
         if (id_token) {
-          const unsubscribe = await subscribe(uid, accessToken || id_token?.id_token, handleCloudUpdate);
+          const unsub = await subscribe(uid, accessToken || id_token?.id_token, handleCloudUpdate);
+          unsubscribeRef.current = unsub;
           if (typeof window?.gtag !== 'undefined') {
             window?.gtag('event', 'login', {
               action: 'login',
@@ -236,10 +309,9 @@ const AppProvider = ({ children }) => {
               value: state?.emailPasswordLogin ? 'email-password' : state?.appleLogin ? 'apple' : 'google'
             });
           }
-          setListener({ func: unsubscribe });
           setWaitingForAuth(false);
           setAuthCounter(0);
-        } else if (authCounter > 8) {
+        } else if (authCounter > 12) {
           setWaitingForAuth(false);
           dispatch({ type: 'loginError', data: 'Reached maximum retry limit, please re-open this dialog' });
         }
@@ -253,7 +325,9 @@ const AppProvider = ({ children }) => {
   );
 
   const logout = (manualImport, data) => {
-    typeof listener.func === 'function' && listener.func();
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+    }
     userSignOut();
     if (typeof window?.gtag !== 'undefined') {
       window?.gtag('event', 'logout', {
@@ -278,13 +352,13 @@ const AppProvider = ({ children }) => {
       const { profile, ...rest } = router.query
       router.replace({ query: rest })
     }
-    console.info('rawData', {
-      data,
-      charNames,
-      companion,
-      guildData,
-      serverVars
-    })
+    // console.info('rawData', {
+    //   data,
+    //   charNames,
+    //   companion,
+    //   guildData,
+    //   serverVars
+    // })
     const accountCreateTimeInSeconds = accountCreateTime?.seconds;
     const lastUpdated = new Date().getTime();
     localStorage.setItem('rawJson', JSON.stringify({
@@ -297,7 +371,7 @@ const AppProvider = ({ children }) => {
       lastUpdated
     }));
     const { parseData } = await import('@parsers/index');
-    const parsedData = parseData(data, charNames, companion, guildData, serverVars, accountCreateTimeInSeconds * 1000);
+    let parsedData = parseData(data, charNames, companion, guildData, serverVars, accountCreateTimeInSeconds * 1000);
     localStorage.setItem('manualImport', JSON.stringify(false));
     dispatch({
       type: 'data',
@@ -310,9 +384,11 @@ const AppProvider = ({ children }) => {
         serverVars,
         uid,
         accessToken,
-        accountCreateTime: accountCreateTimeInSeconds * 1000
+        accountCreateTime: accountCreateTimeInSeconds * 1000,
+        isLoading: false
       }
     });
+    parsedData = null;
   };
 
   const checkOfflineTool = () => {
@@ -321,10 +397,6 @@ const AppProvider = ({ children }) => {
     const formattedEndPoint = endPoint?.replace('-', ' ')?.toCamelCase();
     return !state?.signedIn && router.pathname.includes('tools') && offlineTools[formattedEndPoint];
   };
-
-  const shouldDisplayPage = () => {
-    return value?.state?.account || value?.state?.manualImport || router.pathname === '/' || checkOfflineTool() || router.pathname === '/data' || router.pathname === '/leaderboards';
-  }
 
   return (
     <AppContext.Provider
@@ -335,13 +407,7 @@ const AppProvider = ({ children }) => {
         setWaitingForAuth
       }}
     >
-      {shouldDisplayPage() ? (
-        children
-      ) : (
-        <Stack m={15} direction={'row'} justifyContent={'center'}>
-          <CircularProgress/>
-        </Stack>
-      )}
+      {children}
     </AppContext.Provider>
   );
 };

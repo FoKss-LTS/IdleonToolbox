@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Box, Card, CardContent, Divider, Stack, Typography } from '@mui/material';
+import { IconInfoCircleFilled } from '@tabler/icons-react';
 import { cleanUnderscore, kFormatter, notateNumber, pascalCase, prefix } from '../../utility/helpers';
 import styled from '@emotion/styled';
 import HtmlTooltip from '../Tooltip';
@@ -7,6 +8,7 @@ import {
   alchemyAlerts,
   anvilAlerts,
   cardsAlert,
+  classSpecificAlerts,
   crystalCountdownAlerts,
   getDivinityAlert,
   getEquipmentAlert,
@@ -18,13 +20,18 @@ import {
   trapsAlerts,
   worshipAlerts
 } from '@utility/dashboard/characters';
-import InfoIcon from '@mui/icons-material/Info';
 import Timer from '../common/Timer';
 import { TitleAndValue } from '../common/styles';
 import { getAfkGain, getCashMulti, getDropRate, getRespawnRate } from '@parsers/character';
 import { getMaxDamage, notateDamage } from '@parsers/damage';
 import { differenceInMinutes } from 'date-fns';
+import { getTalentBonusIfActive } from '@parsers/talents';
 
+const formMap = {
+  'data/UISkillIcon195': 'Wraith Form',
+  'data/UISkillIcon585': 'Arcanist Form',
+  'data/UISkillIcon420': 'Tempest Form'
+}
 const alertsMap = {
   anvil: anvilAlerts,
   worship: worshipAlerts,
@@ -38,7 +45,8 @@ const alertsMap = {
   talents: talentsAlerts,
   cards: cardsAlert,
   divinityStyle: getDivinityAlert,
-  equipment: getEquipmentAlert
+  equipment: getEquipmentAlert,
+  classSpecific: classSpecificAlerts
 }
 
 const Characters = ({ characters = [], account, lastUpdated, trackers }) => {
@@ -63,17 +71,23 @@ const Characters = ({ characters = [], account, lastUpdated, trackers }) => {
         const alerts = Object.keys(options)?.reduce((result, trackerName) => {
           result[trackerName] = alertsMap?.[trackerName]?.(account, characters, character, lastUpdated, options) || {};
           return result;
-        }, {})
+        }, {});
         const isActive = () => {
           const timePassed = new Date().getTime() + (afkTime - lastUpdated);
           const minutes = differenceInMinutes(new Date(), new Date(timePassed));
           return minutes <= 5;
         };
         const activity = afkTarget && afkTarget !== '_' ? afkTarget : 'Nothing';
+        const classIcon = classIndex !== undefined ? `data/ClassIcons${classIndex}.png` : 'afk_targets/Nothing.png'
+        const dbFormActive = getTalentBonusIfActive(character?.activeBuffs, 'WRAITH_FORM') && 'data/UISkillIcon195';
+        const acFormActive = getTalentBonusIfActive(character?.activeBuffs, 'ARCANIST_FORM') && 'data/UISkillIcon585';
+        const wwFormActive = getTalentBonusIfActive(character?.activeBuffs, 'TEMPEST_FORM') && 'data/UISkillIcon420';
+        const charForm = dbFormActive || acFormActive || wwFormActive;
+
         return <Card key={name} sx={{ width: 300 }} data-cy={`character-${name}`}>
           <CardContent>
             <Stack direction={'row'} alignItems={'center'} gap={1} flexWrap={'wrap'}>
-              <Box sx={{ display: { sm: 'none', md: 'block' } }}><img src={`${prefix}data/ClassIcons${classIndex}.png`}
+              <Box sx={{ display: { sm: 'none', md: 'block' } }}><img src={`${prefix}${classIcon}`}
                                                                       alt=""/></Box>
               <Stack>
                 <Typography>{name}</Typography>
@@ -85,9 +99,13 @@ const Characters = ({ characters = [], account, lastUpdated, trackers }) => {
                   <IconImg src={`${prefix}afk_targets/${activity}.png`} alt="activity icon"
                   />
                 </HtmlTooltip>
+                {charForm ? <HtmlTooltip title={`${formMap?.[charForm]}`}>
+                  <IconImg src={`${prefix}${dbFormActive || acFormActive || wwFormActive}.png`} alt="form icon"
+                  />
+                </HtmlTooltip> : null}
                 <HtmlTooltip title={<CharacterInfo characters={characters} account={account} character={character}
                                                    lastUpdated={lastUpdated}/>}>
-                  <InfoIcon/>
+                  <IconInfoCircleFilled/>
                 </HtmlTooltip>
               </Stack>
             </Stack>
@@ -119,14 +137,43 @@ const Characters = ({ characters = [], account, lastUpdated, trackers }) => {
                 <Alert title={`${name} has ${alerts?.obols?.missingObols?.length} empty obol slots`}
                        iconPath={'data/ObolLocked1'}/> : null}
               {trackers?.postOffice && alerts?.postOffice?.unspentPoints ?
-                <Alert title={`${name} has ${Math.floor(postOffice?.unspentPoints)} unspent points`}
+                <Alert title={`${name} has ${Math.floor(postOffice?.unspentPoints)} unspent post office points`}
                        iconPath={'data/UIboxUpg0'}/> : null}
               {trackers?.anvil && alerts?.anvil?.missingHammers > 0 ?
                 <Alert title={`${name} is missing ${alerts?.anvil?.missingHammers} hammers`}
                        iconPath={'data/GemP1'}/> : null}
               {trackers?.anvil && alerts?.anvil?.unspentPoints > 0 ?
-                <Alert title={`${name} has ${alerts?.anvil?.unspentPoints} unspent points anvil points`}
+                <Alert title={`${name} has ${alerts?.anvil?.unspentPoints} unspent anvil points`}
                        iconPath={'data/ClassIcons43'}/> : null}
+              {trackers?.classSpecific && alerts?.classSpecific?.wrongItems?.acWeapon ?
+                <Alert title={`${name} is not in Arcanist form but is using an Arcanist-form weapon`}
+                       iconPath={'data/EquipmentWandsArc0'}/> : null}
+              {trackers?.classSpecific && alerts?.classSpecific?.wrongItems?.acRings ?
+                <Alert title={`${name} is not in Arcanist form but is using an Arcanist-form ring`}
+                       iconPath={`data/${alerts?.classSpecific?.wrongItems?.acRings}`}/> : null}
+              {trackers?.classSpecific && alerts?.classSpecific?.wrongItems?.wwWeapon ?
+                <Alert title={`${name} is not in Temptest form but is using a Tempest-form weapon`}
+                       style={{ zIndex: 1 }}
+                       iconPath={`data/${alerts?.classSpecific?.wrongItems?.wwWeapon}`}
+                /> : null}
+              {trackers?.classSpecific && alerts?.classSpecific?.wrongItems?.wwRings ?
+                <Alert title={`${name} is not in Temptest form but is using a Tempest-form ring`}
+                       style={{ zIndex: 1 }}
+                       iconPath={`data/${alerts?.classSpecific?.wrongItems?.wwRings}`}
+                /> : null}
+              {trackers?.classSpecific && alerts?.classSpecific?.betterWeapon ?
+                <Alert title={`${name} has a better class-specific weapon in their inventory`}
+                       iconPath={`data/${alerts?.classSpecific?.betterWeapon?.rawName}`}
+                       extra={<img
+                         src={`${prefix}data/UpgArrowG.png`}
+                         style={{
+                           position: 'absolute',
+                           width: 12,
+                           height: 12,
+                           top: -2,
+                           right: -2
+                         }}/>}
+                /> : null}
               {trackers?.anvil && alerts?.equipment?.availableUpgradesSlots?.length > 0 ?
                 alerts?.equipment?.availableUpgradesSlots?.map(({
                                                                   displayName,
@@ -244,33 +291,35 @@ const CharacterInfo = ({ account, characters, character, lastUpdated }) => {
     const minutes = differenceInMinutes(new Date(), new Date(timePassed));
     return minutes <= 5;
   };
-  return <Stack gap={1}>
-    <TitleAndValue title={name} value={`lv. ${stats?.level || 0}`}/>
-    <TitleAndValue title={'Afk time'}
-                   value={isActive() ? <Typography>Active</Typography> : <Timer type={'up'} date={afkTime}
-                                                                                lastUpdated={lastUpdated}/>}/>
-    <Divider flexItem sx={{ background: 'black' }}/>
-    <TitleAndValue title={'Damage'} value={notateDamage(playerInfo)?.at(0)?.replace(/\[/g, 'M')}/>
-    <TitleAndValue title={'Hp'} value={notateNumber(playerInfo?.maxHp)}/>
-    <TitleAndValue title={'Mp'} value={notateNumber(playerInfo?.maxMp)}/>
-    <TitleAndValue title={'Accuracy'} value={notateNumber(playerInfo?.accuracy)}/>
-    <TitleAndValue title={'Movement Speed'} value={notateNumber(playerInfo?.movementSpeed)}/>
-    <Divider flexItem sx={{ background: 'black' }}/>
-    <TitleAndValue title={'Cash multi'} value={`${notateNumber(cashMulti)}%`}/>
-    <TitleAndValue title={'Drop rate'} value={`${notateNumber(dropRate, 'MultiplierInfo')}x`}/>
-    <TitleAndValue title={'Respawn rate'} value={`${notateNumber(respawnRate, 'MultiplierInfo')}%`}/>
-    <TitleAndValue title={'Afk gains'} value={`${notateNumber(afkGains * 100, 'MultiplierInfo')}%`}/>
-    <TitleAndValue title={'Crystal Chance'} value={(1 / crystalSpawnChance?.value) < 100
-      ?
-      `${notateNumber(crystalSpawnChance?.value * 100, 'MultiplierInfo')?.replace('.00', '')}%`
-      : `1 in ${Math.floor(1 / crystalSpawnChance?.value)}`}/>
-    <TitleAndValue title={'Non consume chance'} value={`${kFormatter(nonConsumeChance, 2)}%`}/>
-  </Stack>
+  return (
+    (<Stack gap={1}>
+      <TitleAndValue title={name} value={`lv. ${stats?.level || 0}`}/>
+      <TitleAndValue title={'Afk time'}
+                     value={isActive() ? <Typography>Active</Typography> : <Timer type={'up'} date={afkTime}
+                                                                                  lastUpdated={lastUpdated}/>}/>
+      <Divider flexItem/>
+      <TitleAndValue title={'Damage'} value={notateDamage(playerInfo)?.at(0)?.replace(/\[/g, 'M')}/>
+      <TitleAndValue title={'Hp'} value={notateNumber(playerInfo?.maxHp)}/>
+      <TitleAndValue title={'Mp'} value={notateNumber(playerInfo?.maxMp)}/>
+      <TitleAndValue title={'Accuracy'} value={notateNumber(playerInfo?.accuracy)}/>
+      <TitleAndValue title={'Movement Speed'} value={notateNumber(playerInfo?.movementSpeed)}/>
+      <Divider flexItem/>
+      <TitleAndValue title={'Cash multi'} value={`${notateNumber(cashMulti)}%`}/>
+      <TitleAndValue title={'Drop rate'} value={`${notateNumber(dropRate, 'MultiplierInfo')}x`}/>
+      <TitleAndValue title={'Respawn rate'} value={`${notateNumber(respawnRate, 'MultiplierInfo')}%`}/>
+      <TitleAndValue title={'Afk gains'} value={`${notateNumber(afkGains * 100, 'MultiplierInfo')}%`}/>
+      <TitleAndValue title={'Crystal Chance'} value={(1 / crystalSpawnChance?.value) < 100
+        ?
+        `${notateNumber(crystalSpawnChance?.value * 100, 'MultiplierInfo')?.replace('.00', '')}%`
+        : `1 in ${Math.floor(1 / crystalSpawnChance?.value)}`}/>
+      <TitleAndValue title={'Non consume chance'} value={`${kFormatter(nonConsumeChance, 2)}%`}/>
+    </Stack>)
+  );
 }
 
 const IconImg = styled.img`
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
 `;
 

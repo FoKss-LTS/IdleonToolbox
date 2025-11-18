@@ -17,8 +17,8 @@ export const IconWithText = forwardRef((props, ref) => {
 })
 IconWithText.displayName = 'IconWithText'
 
-export const TitleAndValue = ({ title, value, boldTitle, titleStyle = {}, valueStyle = {} }) => {
-  return <Stack direction={'row'} flexWrap={'wrap'} alignItems={'center'}>
+export const TitleAndValue = ({ title, value, boldTitle, titleStyle = {}, valueStyle = {}, stackStyle }) => {
+  return <Stack direction={'row'} flexWrap={'wrap'} alignItems={'center'} sx={stackStyle}>
     {title ? <Typography sx={titleStyle} fontWeight={boldTitle ? 'bold' : 500}
                          component={'span'}>{title}:&nbsp;</Typography> : null}
     <Typography fontSize={15} component={'span'} sx={valueStyle}>{value}</Typography>
@@ -33,14 +33,16 @@ export const StyledBadge = styled(Badge)`
 `
 
 export const CardAndBorder = (cardProps) => {
-  const { cardName, stars, cardIndex, name, variant, rawName, amount, nextLevelReq } = cardProps;
+  const { cardName, stars, cardIndex, name, variant, rawName, amount, nextLevelReq, forceDisable } = cardProps;
   const iconSrc = variant === 'cardSet' ? `${prefix}data/${rawName}.png` : `${prefix}data/2Cards${cardIndex}.png`;
   const realCardName = variant === 'cardSet' ? name : cardName;
+
   return <>
-    {stars > 0 ?
+    {stars > 0 && !forceDisable ?
       <BorderIcon src={`${prefix}data/CardEquipBorder${stars}.png`} alt=""/> : null}
     <Tooltip title={<CardTooltip {...{ ...cardProps, cardName: realCardName, nextLevelReq, amount }}/>}>
       <CardIcon
+        forceDisable={forceDisable}
         isCardSet={variant === 'cardSet'}
         amount={amount}
         src={iconSrc} alt=""/>
@@ -80,7 +82,7 @@ const CardIcon = styled.img`
   width: 56px;
   height: 72px;
   object-fit: contain;
-  opacity: ${({ amount, isCardSet }) => !amount && !isCardSet ? .5 : 1};
+  opacity: ${({ amount, isCardSet, forceDisable }) => (!amount && !isCardSet) || forceDisable ? .5 : 1};
 `
 
 const BorderIcon = styled.img`
@@ -136,31 +138,38 @@ export const CardTitleAndValue = ({
                                     contentPadding
                                   }) => {
   return <Tooltip title={tooltipTitle || ''}>
-    <Card variant={variant} raised={raised} sx={{ my: { xs: 0, md: 3 }, width: 'fit-content', ...cardSx }}>
-      <CardContent sx={{ '&:last-child': contentPadding ? { p: contentPadding } : {} }}>
+    <Card variant={variant} raised={raised}
+          sx={{ my: { xs: 0, md: 3 }, mb: { xs: 2 }, width: 'fit-content', ...cardSx }}>
+      <CardContent sx={{ '&:last-child': contentPadding ? { p: contentPadding } : {}, height: '100%' }}>
         <Stack sx={{ display: stackProps ? 'flex' : 'block', ...(stackProps || {}) }}>
-          {title ? <Typography sx={{ fontSize: 14 }} color="text.secondary" gutterBottom component={'span'}>{title}</Typography> : null}
+          {title ? <Typography sx={{ fontSize: 14 }} color="text.secondary" gutterBottom
+                               component={'span'}>{title}</Typography> : null}
           {(value || imgOnly) ? icon ? <Stack direction={'row'} gap={2} alignItems={'center'}>
             <img style={{ objectFit: 'contain', ...imgStyle }} src={`${prefix}${icon}`} alt=""/>
-            {value ? <Typography>{value}</Typography> : null}
-          </Stack> : <Typography>{value}</Typography> : children}
+            {value ? <Typography component={'div'}>{value}</Typography> : null}
+          </Stack> : <Typography component={'div'}>{value}</Typography> : children}
         </Stack>
       </CardContent>
     </Card>
   </Tooltip>
 }
 
-export const Breakdown = ({ breakdown, titleStyle = {}, notation = 'Big' }) => {
+export const Breakdown = ({ breakdown, titleStyle = {}, notation = 'Big', skipNotation }) => {
   return <>
-    {breakdown?.map(({ name, value, title }, index) => title ? <Typography sx={{ fontWeight: 500 }}
-                                                                           key={`${name}-${index}`}>{title}</Typography>
-      : !name ? <Divider sx={{ my: 1, bgcolor: 'black' }} key={`${name}-${index}`}/> : <TitleAndValue
-        key={`${name}-${index}`}
-        titleStyle={{ width: 120, ...titleStyle }}
-        title={name}
-        value={!isNaN(value)
-          ? notateNumber(value, notation)
-          : value}/>)}
+    {breakdown?.map(({ name, value, title }, index) => {
+      return title ? <Stack key={`${title}-${index}`}>
+          {index > 0 ? <Divider sx={{ my: 1 }}/> : null}
+          <Typography sx={{ fontWeight: 500 }}>{title}</Typography>
+          <Divider sx={{ my: 1 }}/>
+        </Stack>
+        : <TitleAndValue
+          key={`${name}-${index}`}
+          titleStyle={{ width: 120, ...titleStyle }}
+          title={name}
+          value={skipNotation ? value : !isNaN(value)
+            ? notateNumber(value, notation).replace('.00', '')
+            : value}/>
+    })}
   </>
 }
 

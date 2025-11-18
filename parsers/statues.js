@@ -1,7 +1,9 @@
 import { tryToParse } from '../utility/helpers';
 import { statues } from '../data/website-data';
-import { getHighestTalentByClass, getTalentBonus } from './talents';
+import { CLASSES, getHighestTalentByClass, getTalentBonus } from './talents';
 import { isArtifactAcquired } from '@parsers/sailing';
+import { getUpgradeVaultBonus } from '@parsers/misc/upgradeVault';
+import { getEventShopBonus } from '@parsers/misc';
 
 export const getStatues = (idleonData, charactersData) => {
   const statuesRaw = tryToParse(idleonData?.StuG) || idleonData?.StatueG;
@@ -23,7 +25,8 @@ export const parseStatues = (statuesRaw, charactersData) => {
           rawName: `Statue${onyxStatue ? 'O' : goldStatue ? 'G' : ''}${parseInt(statueIndex) + 1}`,
           level,
           progress,
-          onyxStatue
+          onyxStatue,
+          statueIndex
         }
       ];
     }, [])
@@ -37,66 +40,86 @@ const getHighestLevelStatues = (characters, statueIndex) => {
 };
 
 export const applyStatuesMulti = (account, characters) => {
-  const voodoStatusification = getHighestTalentByClass(characters, 3, 'Voidwalker', 'VOODOO_STATUFICATION');
+  const voodoStatusification = getHighestTalentByClass(characters, CLASSES.Voidwalker, 'VOODOO_STATUFICATION');
   const talentMulti = 1 + voodoStatusification / 100;
   const artifact = isArtifactAcquired(account?.sailing?.artifacts, 'The_Onyx_Lantern');
+  const eventBonus = getEventShopBonus(account, 19) ?? 0;
   const statues = account?.statues?.map((statue) => ({
     ...statue,
     bonus: statue?.bonus,
     talentMulti,
-    onyxMulti: artifact?.bonus ?? 0
+    onyxMulti: artifact?.bonus ?? 0,
+    eventBonusMulti: 1 + 0.3 * eventBonus
   }));
-  const dragonStatueMulti = getStatueBonus(statues, 'StatueG29');
-  return statues.map((statue) => ({ ...statue, dragonMulti: dragonStatueMulti }))
+  const dragonStatueMulti = getStatueBonus({ statues }, 29);
+  const upgradeVaultBonusIndexes = [0, 1, 2, 6];
+
+  return statues?.map((statue) => {
+    let upgradeVaultMulti = 1;
+    if (upgradeVaultBonusIndexes.includes(statue.statueIndex)) {
+      upgradeVaultMulti = getUpgradeVaultBonus(account?.upgradeVault?.upgrades, 25)
+    }
+    return { ...statue, dragonMulti: dragonStatueMulti, upgradeVaultMulti };
+  })
 }
-export const getStatueBonus = (statues, statueName, talents) => {
-  const statue = statues?.find(({ rawName }) => rawName === statueName || rawName === statueName.replace('G', 'O'));
+export const getStatueBonus = (account, statueIndex, talents) => {
+  const statue = account?.statues?.[statueIndex];
   if (!statue) return 0;
   let talentBonus = 1;
 
   switch (statue?.name) {
     case 'POWER':
     case 'MINING':
-      talentBonus += (getTalentBonus(talents, 2, 'SHIELDIEST_STATUES') || getTalentBonus(talents, 2, 'STRONGEST_STATUES')) / 100;
+      talentBonus += (getTalentBonus(talents, 'SHIELDIEST_STATUES') || getTalentBonus(talents, 'STRONGEST_STATUES')) / 100;
       break;
     case 'OCEANMAN':
-      talentBonus += getTalentBonus(talents, 2, 'STRONGEST_STATUES') / 100;
+      talentBonus += getTalentBonus(talents, 'STRONGEST_STATUES') / 100;
       break;
     case 'DEFENCE':
     case 'THICC_SKIN':
-      talentBonus += getTalentBonus(talents, 2, 'SHIELDIEST_STATUES') / 100;
+      talentBonus += getTalentBonus(talents, 'SHIELDIEST_STATUES') / 100;
       break;
     case 'SPEED':
     case 'ANVIL':
-      talentBonus += (getTalentBonus(talents, 2, 'STRAIGHTSHOT_STATUES') || getTalentBonus(talents, 2, 'SHWIFTY_STATUES')) / 100;
+      talentBonus += (getTalentBonus(talents, 'STRAIGHTSHOT_STATUES') || getTalentBonus(talents, 'SHWIFTY_STATUES')) / 100;
       break;
     case 'BULLSEYE':
-      talentBonus += getTalentBonus(talents, 2, 'STRAIGHTSHOT_STATUES') / 100;
+      talentBonus += getTalentBonus(talents, 'STRAIGHTSHOT_STATUES') / 100;
       break;
     case 'OL_RELIABLE':
-      talentBonus += getTalentBonus(talents, 2, 'SHWIFTY_STATUES') / 100;
+      talentBonus += getTalentBonus(talents, 'SHWIFTY_STATUES') / 100;
       break;
     case 'EXP':
     case 'LUMBERBOB':
-      talentBonus += (getTalentBonus(talents, 2, 'STARING_STATUES') || getTalentBonus(talents, 2, 'STUPENDOUS_STATUES')) / 100;
+      talentBonus += (getTalentBonus(talents, 'STARING_STATUES') || getTalentBonus(talents, 'STUPENDOUS_STATUES')) / 100;
       break;
     case 'BEHOLDER':
-      talentBonus += getTalentBonus(talents, 2, 'STARING_STATUES') / 100;
+      talentBonus += getTalentBonus(talents, 'STARING_STATUES') / 100;
       break;
     case 'CAULDRON':
-      talentBonus += getTalentBonus(talents, 2, 'STUPENDOUS_STATUES') / 100;
+      talentBonus += getTalentBonus(talents, 'STUPENDOUS_STATUES') / 100;
       break;
     case 'EHEXPEE':
     case 'KACHOW':
     case 'FEASTY':
-      talentBonus += getTalentBonus(talents, 2, 'SKILLIEST_STATUE') / 100;
+      talentBonus += getTalentBonus(talents, 'SKILLIEST_STATUE') / 100;
       break;
     default:
       talentBonus = 1;
   }
+
   const onyxMulti = statue?.onyxStatue ? 2 + statue?.onyxMulti / 100 : 1;
   const dragonMulti = statue?.dragonMulti && statue?.name !== 'DRAGON' ? 1 + statue?.dragonMulti / 100 : 1;
-  return statue?.level * statue?.bonus * talentBonus * statue?.talentMulti * onyxMulti * dragonMulti;
+  const upgradeVaultMulti = statue?.upgradeVaultMulti > 1 ? 1 + statue?.upgradeVaultMulti / 100 : 1;
+
+  return statue?.level
+    * statue?.bonus
+    * talentBonus
+    * statue?.talentMulti
+    * onyxMulti
+    * dragonMulti
+    * upgradeVaultMulti
+    * statue?.eventBonusMulti;
 };
 
 export const calcStatueLevels = (allStatues) => {

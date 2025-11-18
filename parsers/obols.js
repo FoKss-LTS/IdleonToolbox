@@ -1,4 +1,4 @@
-import { tryToParse } from '../utility/helpers';
+import { createArrayOfArrays, tryToParse } from '../utility/helpers';
 import { items, obols } from '../data/website-data';
 import { addStoneDataToEquip } from './items';
 
@@ -11,10 +11,11 @@ export const getObols = (idleonData, account = true) => {
   const obolsEquippedRaw = tryToParse(idleonData?.ObolEqMAPz1) || (account
     ? idleonData?.ObolEquippedMap?.[1]
     : idleonData?.ObolEquippedMap);
-  return parseObols(obolsOrderRaw, obolsEquippedRaw, account);
+  const obolsInvRaw = tryToParse(idleonData?.ObolInvOr);
+  return parseObols(obolsOrderRaw, obolsEquippedRaw, obolsInvRaw, account);
 }
 
-export const parseObols = (obolsRaw, obolsEquippedRaw, account) => {
+export const parseObols = (obolsRaw, obolsEquippedRaw, obolsInvRaw, account) => {
   const obolsType = account ? obols.family : obols.character;
   const obolsMapping = obolsRaw?.map((obol, index) => ({
     displayName: items?.[obol]?.displayName,
@@ -26,6 +27,7 @@ export const parseObols = (obolsRaw, obolsEquippedRaw, account) => {
   obolsList.sort((a, b) => a.index - b.index);
   const stats = getStatsFromObols(obolsList, account);
   return {
+    inventory: createArrayOfArrays(obolsInvRaw) || [],
     list: obolsList,
     stats
   };
@@ -36,10 +38,33 @@ export const createObolsWithUpgrades = (charItems, stoneData) => {
     const { rawName } = item;
     if (rawName === 'Blank') return [...res, item];
     const stoneResult = addStoneDataToEquip(items?.[rawName], stoneData?.[itemIndex]);
+    const rerolled = Object.values(stoneData?.[itemIndex] || {}).some((value) => !isNaN(value) && value > 0);
     return rawName ? [...res, {
-      ...(rawName === 'Blank' ? {} : { ...item, ...items?.[rawName], ...stoneResult })
+      ...(rawName === 'Blank' ? {} : { ...item, ...items?.[rawName], ...stoneResult }),
+      rerolled
     }] : res
   }, []);
+}
+
+export const getPowerType = (type) => {
+  let fixedType = type.toLowerCase();
+  if (!fixedType) return 'Weapon Power';
+  if (fixedType.includes('obolbronzeworship')) {
+    return 'Worship Power';
+  }
+  if (fixedType.includes('obolbronzetrapping')) {
+    return 'Trapping Power';
+  }
+  if (fixedType.includes('mining')) {
+    return 'Mining Power';
+  } else if (fixedType.includes('fishin')) {
+    return 'Fishing Power';
+  } else if (fixedType.includes('choppin')) {
+    return 'Choppin Power';
+  } else if (fixedType.includes('catch')) {
+    return 'Catching Power';
+  }
+  return 'Weapon Power'
 }
 
 const getStatsFromObols = (obols, account) => {
@@ -48,23 +73,27 @@ const getStatsFromObols = (obols, account) => {
     Object.entries(obol).forEach(([statName, statValue]) => {
       const stat = obolStats.includes(statName);
       if (!stat) return;
-      if (res[statName]?.[bonusText] || res[statValue]?.[bonusText]) {
-        if (statName === 'UQ1txt' || statName === 'UQ2txt') {
+      let realStatName = statName;
+      if (statName === 'Weapon_Power' && statValue > 0) {
+        realStatName = getPowerType(obol?.UQ1txt || obol?.rawName).replace(/ /, '_');
+      }
+      if (res[realStatName]?.[bonusText] || res[statValue]?.[bonusText]) {
+        if (realStatName === 'UQ1txt' || realStatName === 'UQ2txt') {
           if (statValue === 0) return;
-          const reg = statName.match(/\d/g)?.[0];
+          const reg = realStatName.match(/\d/g)?.[0];
           res[statValue] = {
             [bonusText]: (res?.[statValue]?.[bonusText] ?? 0) + obol?.[`UQ${reg}val`] || 0
           }
         } else {
-          res[statName] = { [bonusText]: (res?.[statName]?.[bonusText] ?? 0) + statValue }
+          res[realStatName] = { [bonusText]: (res?.[realStatName]?.[bonusText] ?? 0) + statValue }
         }
       } else {
-        if (statName === 'UQ1txt' || statName === 'UQ2txt') {
+        if (realStatName === 'UQ1txt' || realStatName === 'UQ2txt') {
           if (statValue === 0) return;
-          const reg = statName.match(/\d/g)?.[0];
+          const reg = realStatName.match(/\d/g)?.[0];
           res[statValue] = { [bonusText]: (res?.[statValue]?.[bonusText] ?? 0) + obol?.[`UQ${reg}val`] || 0 }
         } else {
-          res[statName] = { [bonusText]: statValue }
+          res[realStatName] = { [bonusText]: statValue }
         }
       }
     })

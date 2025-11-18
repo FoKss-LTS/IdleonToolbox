@@ -1,4 +1,16 @@
-import { Checkbox, Chip, Divider, List, ListItem, ListItemIcon, ListItemText, Stack, Typography } from '@mui/material';
+import {
+  Checkbox,
+  Chip,
+  chipClasses,
+  Divider,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Skeleton,
+  Stack,
+  Typography
+} from '@mui/material';
 import React, { useContext, useMemo, useState } from 'react';
 import { AppContext } from '../../context/AppProvider';
 import { prefix, sections } from 'utility/helpers';
@@ -10,9 +22,9 @@ const CharactersDrawer = () => {
   const [hoverIndex, setHoverIndex] = useState(null);
   const [checked, setChecked] = React.useState(state?.displayedCharacters ? state?.displayedCharacters : {
     all: false,
-    ...state?.characters?.reduce((res, { name }) => ({
+    ...Array(state?.characters?.length).fill(false).reduce((res, _, index) => ({
       ...res,
-      [name]: false
+      [index]: false
     }), {})
   });
   const [chips, setSelectedChips] = useState(state.filters ? state.filters : sections.reduce((res, { name }) => ({
@@ -20,23 +32,31 @@ const CharactersDrawer = () => {
     [name]: false
   }), {}));
 
-  const handleCharacterChange = (event, _, charName) => {
+  const handleCharacterChange = (event, _, charIndex) => {
     let newState;
-    if (charName) {
+    if (charIndex !== undefined && charIndex !== null) {
       newState = {
-        ...state?.characters?.reduce((res, { name }) => ({ ...res, [name]: charName === name }), {}),
-        all: false,
+        ...Array(state?.characters?.length).fill(false).reduce((res, _, index) => ({
+          ...res,
+          [index]: index === charIndex
+        }), {}),
+        all: false
       }
     } else {
       if (event === 'all') {
+        const newAllState = !checked.all;
         newState = {
-          all: !checked.all,
-          ...state?.characters?.reduce((res, { name }) => ({ ...res, [name]: !checked.all }), {})
+          all: newAllState,
+          ...Array(state?.characters?.length).fill(false).reduce((res, _, index) => ({
+            ...res,
+            [index]: newAllState
+          }), {})
         };
       } else {
+        const index = parseInt(event.target.name, 10);
         newState = {
           ...checked,
-          [event.target.name]: event.target.checked,
+          [index]: event.target.checked
         }
       }
     }
@@ -55,64 +75,104 @@ const CharactersDrawer = () => {
       window.gtag('event', 'filter_selection', {
         event_category: name,
         event_label: 'engagement',
-        value: !chips?.[name],
+        value: !chips?.[name]
       })
     }
     setSelectedChips(newChipsState);
     dispatch({ type: 'filters', data: newChipsState })
   }
 
+  // Render character skeleton loaders while data is loading
+  const renderCharactersList = () => {
+    if (state.isLoading || !state?.characters?.length) {
+      return (
+        <>
+          {[1, 2, 3, 4, 5].map((key) => (
+            <ListItem key={`skeleton-${key}`}>
+              <ListItemIcon>
+                <Skeleton variant="circular" width={36} height={36}/>
+              </ListItemIcon>
+              <ListItemText
+                primary={<Skeleton variant="text" width={100}/>}
+              />
+              <Skeleton variant="rectangular" width={24} height={24}/>
+            </ListItem>
+          ))}
+        </>
+      );
+    }
+
+    return state?.characters?.map((character, index) => {
+      const { name, classIndex, level } = character;
+      const classIcon = classIndex !== undefined ? `data/ClassIcons${classIndex}.png` : 'afk_targets/Nothing.png'
+      return <ListItem
+        onMouseEnter={() => setHoverIndex(index)}
+        onMouseLeave={() => setHoverIndex(null)}
+        key={`${name}-${index}`}
+        secondaryAction={
+          <Checkbox
+            edge="end"
+            name={`${index}`}
+            onChange={handleCharacterChange}
+            checked={checked?.[index]}
+            role={'checkbox'}
+            aria-label={`Check to see stats for ${name}`}
+          />}>
+        <ListItemIcon>
+          <Tooltip title={`Lv. ${level}`}>
+            <img style={{ width: 38, height: 36 }} src={`${prefix}${classIcon}`} alt=""/>
+          </Tooltip>
+        </ListItemIcon>
+        <ListItemText
+          sx={{ height: 30, margin: 0 }} id={name} primary={name}
+          secondary={hoverIndex === index ? <span
+            onClick={() => handleCharacterChange(null, null, index)}
+            style={{
+              textDecoration: 'underline',
+              cursor: 'pointer'
+            }}>Only</span> : ''}/>
+      </ListItem>
+    });
+  };
+
+  // Render "All" item with skeleton when loading
+  const renderAllItem = () => {
+    if (state.isLoading || !state?.characters?.length) {
+      return (
+        <ListItem>
+          <ListItemText>
+            <Skeleton variant="text" width={80}/>
+          </ListItemText>
+          <Skeleton variant="rectangular" width={24} height={24}/>
+        </ListItem>
+      );
+    }
+
+    return (
+      <ListItem
+        secondaryAction={
+          <Checkbox
+            edge="end"
+            onChange={() => handleCharacterChange('all')}
+            checked={checked?.all}
+          />
+        }>
+        <ListItemText>All (Lv. {totalLevels})</ListItemText>
+      </ListItem>
+    );
+  };
+
   return (
     <Stack sx={{ height: '100%' }}>
-      <Divider/>
       <List dense={true}>
-        <ListItem
-          secondaryAction={
-            <Checkbox
-              edge="end"
-              onChange={() => handleCharacterChange('all')}
-              checked={checked?.all}
-            />
-          }>
-          <ListItemText>All (Lv. {totalLevels})</ListItemText>
-        </ListItem>
-        {state?.characters?.map((character, index) => {
-          const { name, classIndex, level } = character;
-          return <ListItem
-            onMouseEnter={() => setHoverIndex(index)}
-            onMouseLeave={() => setHoverIndex(null)}
-            key={`${name}-${index}`}
-            secondaryAction={
-              <Checkbox
-                edge="end"
-                name={`${name}`}
-                onChange={handleCharacterChange}
-                checked={checked?.[name]}
-                role={'checkbox'}
-                aria-label={`Check to see stats for ${name}`}
-              />}>
-            <ListItemIcon>
-              <Tooltip title={`Lv. ${level}`}>
-                <img style={{ width: 38, height: 36 }} src={`${prefix}data/ClassIcons${classIndex}.png`} alt=""/>
-              </Tooltip>
-            </ListItemIcon>
-            <ListItemText
-
-              sx={{ height: 30, margin: 0 }} id={name} primary={name}
-              secondary={hoverIndex === index ? <span
-                onClick={() => handleCharacterChange(null, null, name)}
-                style={{
-                  textDecoration: 'underline',
-                  cursor: 'pointer'
-                }}>Only</span> : ''}/>
-          </ListItem>
-        })}
+        {renderAllItem()}
+        {renderCharactersList()}
       </List>
       <Divider/>
       <List>
         <ListItem>
           <Stack gap={2}>
-            <Typography>Filter by section</Typography>
+            <Typography variant={'body1'}>Filter by section</Typography>
             <Stack direction={'row'} rowGap={1.5} columnGap={1} flexWrap={'wrap'}>
               {sections.map(({ name }, index) => {
                 return <Chip key={`${name}-${index}`}
@@ -121,7 +181,10 @@ const CharactersDrawer = () => {
                                height: 24,
                                minWidth: 60,
                                maxWidth: 150,
-                               border: '1px solid gray'
+                               border: '1px solid #454545',
+                               [`.${chipClasses.label}`]: {
+                                 px: 1
+                               }
                              }}
                              onClick={() => handleChipClick(name)} size={'small'}
                              variant={chips?.[name] ? 'filled' : 'outlined'}
@@ -133,7 +196,7 @@ const CharactersDrawer = () => {
         </ListItem>
       </List>
       <Divider/>
-      <List style={{ marginTop: 'auto' }}>
+      <List style={{ marginTop: 'auto', paddingBottom: 0 }}>
         <ListItem>
           <ListItemText>
             <Kofi display={'inline-block'}/>

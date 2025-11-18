@@ -8,14 +8,19 @@ import LoginButton from './LoginButton';
 import AppDrawer from './AppDrawer';
 import { drawerWidth, navBarHeight } from '../../constants';
 import { useRouter } from 'next/router';
-import { isProd, shouldDisplayDrawer } from '../../../utility/helpers';
+import { handleLoadJson, isProd, shouldDisplayDrawer } from '../../../utility/helpers';
 import { Adsense } from '@ctrl/react-adsense';
 import { Stack, Typography, useMediaQuery } from '@mui/material';
 import { AppContext } from '../context/AppProvider';
-import IconButton from '@mui/material/IconButton';
-import FileCopyIcon from '@mui/icons-material/FileCopy';
 import AdBlockerPopup from '@components/common/AdBlockerPopup';
 import Pin from '@components/common/favorites/Pin';
+import QuickSearch from '@components/common/QuickSearch';
+import UserMenu from '@components/common/NavBar/UserMenu';
+import { format } from 'date-fns';
+import IconButton from '@mui/material/IconButton';
+import FileCopyIcon from '@mui/icons-material/FileCopy';
+import { CONTENT_PERCENT_SIZE } from '@utility/consts';
+import AuthSkeleton from './AuthSkeleton';
 
 const NavBar = ({ children }) => {
   const { dispatch, state } = useContext(AppContext);
@@ -24,27 +29,31 @@ const NavBar = ({ children }) => {
   const displayDrawer = shouldDisplayDrawer(router?.pathname);
 
   const handlePaste = async () => {
-    try {
-      const content = JSON.parse(await navigator.clipboard.readText());
-      const { data, charNames, companion, guildData, serverVars } = content;
-      const { parseData } = await import('@parsers/index');
-      const parsedData = parseData(data, charNames, companion, guildData, serverVars);
-      const lastUpdated = new Date().getTime();
-      localStorage.setItem('lastUpdated', JSON.stringify(lastUpdated));
-      console.log('Manual Import', { ...parsedData, lastUpdated, manualImport: true });
-      localStorage.setItem('rawJson', JSON.stringify({
-        data,
-        charNames,
-        companion,
-        guildData,
-        serverVars,
-        lastUpdated
-      }))
-      dispatch({ type: 'data', data: { ...parsedData, lastUpdated, manualImport: true } });
-    } catch (e) {
-      console.error('Error while trying to manual import', e);
-    }
+    await handleLoadJson(dispatch);
   }
+
+  // Render the authentication section based on loading state
+  const renderAuthSection = () => {
+    if (state.isLoading) {
+      return <AuthSkeleton/>;
+    }
+
+    return (
+      <>
+        {state?.signedIn || state?.profile ? <UserMenu/> : <LoginButton/>}
+        {state?.signedIn ? (
+          <Stack sx={{ p: 1, width: 120, flexShrink: 0 }}>
+            <Typography sx={{ fontWeight: 'bold', fontSize: 14 }}>{state?.characters?.[0]?.name}</Typography>
+            {state?.lastUpdated ? (
+              <Typography variant={'caption'}>
+                {state?.lastUpdated ? format(state?.lastUpdated, 'dd/MM/yy HH:mm') : 'xx/xx/xx xx:xx'}
+              </Typography>
+            ) : null}
+          </Stack>
+        ) : null}
+      </>
+    );
+  };
 
   return <>
     <Box sx={{ display: 'flex' }}>
@@ -52,13 +61,11 @@ const NavBar = ({ children }) => {
         <Toolbar sx={{ height: navBarHeight, minHeight: navBarHeight }}>
           <AppDrawer/>
           <NavItemsList/>
+          <QuickSearch/>
           {!isProd ? <IconButton data-cy={'paste-data'} color="inherit" onClick={handlePaste}>
             <FileCopyIcon/>
           </IconButton> : null}
-          {state?.profile && state?.characters?.[0]?.name
-            ? <Typography variant={'caption'}>Inspecting {state?.characters?.[0]?.name}</Typography>
-            : null}
-          <LoginButton/>
+          {renderAuthSection()}
         </Toolbar>
       </AppBar>
     </Box>
@@ -70,17 +77,20 @@ const NavBar = ({ children }) => {
       pl: { xs: 3, lg: displayDrawer ? `${drawerWidth + 24}px` : 3 },
       mb: isXs ? '75px' : '110px'
     }}>
-      {(router?.pathname?.includes('account') || router?.pathname?.includes('tools')) ? <Stack
-        direction={'row'} sx={{ justifyContent: 'flex-start' }}><Pin/> </Stack> : null}
-      {children}
+      {(router?.pathname?.includes('account') || router?.pathname?.includes('tools')) ? <Pin/> : null}
+      <ContentWrapper isTools={router?.pathname?.includes('tools')} isLoading={state?.isLoading}>
+        {children}
+      </ContentWrapper>
     </Box>
     <Box
-      key={router?.pathname}
+      key={router?.asPath}
       style={{
         backgroundColor: isProd ? '' : '#d73333',
         position: 'fixed',
         bottom: 0,
         left: { xs: 'inherit', lg: displayDrawer ? drawerWidth : 3 },
+        height: isXs ? 50 : 90,
+        maxHeight: isXs ? 50 : 90,
         width: '100%'
       }}>
       <Adsense
@@ -93,11 +103,47 @@ const NavBar = ({ children }) => {
         }}
         client="ca-pub-1842647313167572"
         slot="1488341218"
-        format={''}
+        format=""
+        responsive={isXs ? 'false': 'true'}
       />
     </Box>
   </>
 };
+
+const ContentWrapper = ({ isTools, isLoading, children }) => {
+  const showWideSideBanner = useMediaQuery('(min-width: 1600px)', { noSsr: true });
+  const showNarrowSideBanner = useMediaQuery('(min-width: 850px)', { noSsr: true });
+  const router = useRouter();
+
+  return !isTools ? children : <Stack direction={'row'} gap={2} justifyContent={'space-between'} sx={{ width: '100%' }}>
+    <Stack
+      sx={{
+        width: '100%',
+        maxWidth: !showNarrowSideBanner && !showWideSideBanner ? '100%' : CONTENT_PERCENT_SIZE
+      }}>
+      {children}
+    </Stack>
+    {showWideSideBanner || showNarrowSideBanner ? <Box
+      key={router.asPath}
+      sx={{
+        backgroundColor: isProd ? '' : '#d73333',
+        width: showWideSideBanner ? 300 : showNarrowSideBanner ? 160 : 0,
+        height: 600,
+        position: 'sticky',
+        top: { xs: '75px', sm: '110px' },
+        alignSelf: 'flex-start'
+      }}>
+      {isProd && showWideSideBanner ? <Adsense
+        client="ca-pub-1842647313167572"
+        slot="7052896184"
+      /> : null}
+      {isProd && showNarrowSideBanner && !showWideSideBanner ? <Adsense
+        client="ca-pub-1842647313167572"
+        slot="5548242827"
+      /> : null}
+    </Box> : null}
+  </Stack>
+}
 
 const AppBar = styled(MuiAppBar, {
   shouldForwardProp: (prop) => prop !== 'open'

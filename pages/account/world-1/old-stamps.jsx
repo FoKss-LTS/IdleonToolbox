@@ -185,12 +185,12 @@ const Stamps = () => {
             if (materials?.length > 0) {
               hasMaterials = materials?.every(({ rawName, type, itemQuantity }) => {
                 if (type === 'Equip') return true;
-                let ownedMats = state?.account?.storage?.filter(({ rawName: storageRawName }) => (storageRawName === rawName))?.amount;
+                let ownedMats = state?.account?.storage?.list?.filter(({ rawName: storageRawName }) => (storageRawName === rawName))?.amount;
                 ownedMats = subtractGreenStacks ? ownedMats - 1e7 : ownedMats;
                 return ownedMats >= itemQuantity * materialCost;
               })
             } else {
-              ownedMats = state?.account?.storage?.find(({ rawName: storageRawName }) => (storageRawName === itemReqRawName))?.amount;
+              ownedMats = state?.account?.storage?.list?.find(({ rawName: storageRawName }) => (storageRawName === itemReqRawName))?.amount;
               ownedMats = subtractGreenStacks ? ownedMats - 1e7 : ownedMats;
               hasMaterials = ownedMats >= materialCost;
             }
@@ -331,7 +331,7 @@ const StampTooltip = ({ level, goalLevel, displayName, effect, multiplier = 1, g
     {level !== goalLevel ? <Typography mt={1} sx={{ color: level > 0 && multiplier > 1 ? 'multi' : '' }}
                                        variant={'body1'}>Goal:
       +{cleanUnderscore(effect.replace(/\+{/, goalBonus))}</Typography> : null}
-  </>
+  </>;
 }
 
 const StampIcon = styled.img`

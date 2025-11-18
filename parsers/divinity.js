@@ -35,7 +35,8 @@ const parseDivinity = (divinityRaw, serializedCharactersData, accountData) => {
         ...god,
         rawName: `DivGod${index}`,
         level,
-        blessingBonus
+        blessingBonus,
+        unlocked: index < unlockedDeities
       }
     }
   );
@@ -48,6 +49,12 @@ const parseDivinity = (divinityRaw, serializedCharactersData, accountData) => {
     unlockedDeities,
     godRank: godRank < 0 ? 0 : godRank
   }
+}
+
+export const getDivStylePerHour = (index) => {
+  return 0 === index ? 1 : 1 === index ? 2 : 2 === index || 3 === index
+    ? 1 : 4 === index ? 7 : 5 === index ? 3 : 6 === index
+      ? 8 : 7 === index && 10
 }
 
 export const applyGodCost = (accountData) => {
@@ -123,21 +130,29 @@ export const getGodByIndex = (linkedDeities, characters, gIndex) => {
 }
 
 export const getDeityLinkedIndex = (account, characters, deityIndex) => {
+  const pocketLinked = account?.hole?.godsLinks?.find(({ index }) => index === deityIndex);
   const normalLink = account?.divinity?.linkedDeities?.map((deity, index) => deityIndex === deity || (isCompanionBonusActive(account, 0) && account?.finishedWorlds?.World4)
     ? index
     : -1);
   const esLink = characters.map((character, index) => isGodEnabledBySorcerer(character, deityIndex) || (isCompanionBonusActive(account, 0) && account?.finishedWorlds?.World4)
     ? index
     : -1);
-  return (normalLink?.map((charIndex, index) => charIndex === -1
-  && esLink?.[index] !== -1
-    ? esLink?.[index]
-    : charIndex)) || [];
+  // Check if pocketLinked exists and add it to the result
+  return normalLink?.map((charIndex, index) => {
+    // First check for pocket link
+    if (pocketLinked) {
+      return index;
+    }
+    // Then check for normal and ES links as before
+    return charIndex === -1 && esLink?.[index] !== -1
+      ? esLink?.[index]
+      : charIndex;
+  }).filter(index => index !== -1) || [];
 }
 
 export const getMinorDivinityBonus = (character, account, forcedDivinityIndex, characters) => {
   const bigPCharacter = characters?.find((char) => char.equippedBubbles?.find(({ bubbleName }) => bubbleName === 'BIG_P'));
-  const bigPBubble = getActiveBubbleBonus((bigPCharacter || character || characters?.[0])?.equippedBubbles, 'kazam', 'BIG_P', account);
+  const bigPBubble = getActiveBubbleBonus((bigPCharacter || character || characters?.[0])?.equippedBubbles, 'BIG_P', account);
   const divinityLevel = (character || bigPCharacter || characters?.[0])?.skillsInfo?.divinity?.level;
   const linkedDeity = forcedDivinityIndex ?? account?.divinity?.linkedDeities?.[character.playerId];
   const godIndex = gods?.[linkedDeity]?.godIndex;

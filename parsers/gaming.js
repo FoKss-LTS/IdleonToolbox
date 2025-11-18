@@ -1,9 +1,19 @@
 import { gamingImports, gamingUpgrades, randomList2, superbitsUpgrades } from '../data/website-data';
 import { notateNumber, number2letter } from '../utility/helpers';
 import { getMinorDivinityBonus } from './divinity';
-import { getHighestCharacterSkill } from './misc';
+import { getHighestCharacterSkill, isMasteryBonusUnlocked } from './misc';
 import { getEquinoxBonus } from './equinox';
 import { getVoteBonus } from '@parsers/world-2/voteBallot';
+import { isArtifactAcquired } from '@parsers/sailing';
+import { getMonumentBonus } from '@parsers/world-5/caverns/bravery';
+import { getJewelBonus, getLabBonus } from '@parsers/lab';
+import { getMealsBonusByEffectOrStat } from '@parsers/cooking';
+import { getBubbleBonus, getVialsBonusByStat } from '@parsers/alchemy';
+import { CLASSES, getHighestTalentByClass } from '@parsers/talents';
+import { getAchievementStatus } from '@parsers/achievements';
+import { getWinnerBonus } from '@parsers/world-6/summoning';
+import { getLampBonus } from '@parsers/world-5/caverns/the-lamp';
+import { getEmperorBonus } from '@parsers/world-6/emperor';
 
 const { tryToParse } = require('../utility/helpers');
 
@@ -22,7 +32,7 @@ const parseGaming = (gamingRaw, gamingSproutRaw, characters, account, serverVars
     for (let r = number2letter.indexOf((baseValue)?.charAt(i)); s < r; s++) {
       logBook.push({
         rawName: ('GamingPlant' + (number2letter[i + 1]) + s + '.png'),
-        unlocked:  gamingRaw?.[11] ? s < number2letter.indexOf((gamingRaw?.[11])?.charAt(i)) : false
+        unlocked: gamingRaw?.[11] ? s < number2letter.indexOf((gamingRaw?.[11])?.charAt(i)) : false
       });
     }
   }
@@ -33,11 +43,11 @@ const parseGaming = (gamingRaw, gamingSproutRaw, characters, account, serverVars
   const poingHighscore = gamingRaw?.[10];
   const poingMulti = Math.max(1 + Math.pow(poingHighscore, 0.5) / 100, 1);
   const bestNugget = gamingRaw?.[8];
+  const elegantShellRank = gamingSproutRaw?.[28]?.[2];
   const totalPlantsPicked = gamingSproutRaw?.[28]?.[1];
   const lastShovelClicked = gamingSproutRaw?.[26]?.[1];
   const goldNuggets = calcGoldNuggets(lastShovelClicked);
-  const lastAcornClicked = gamingSproutRaw?.[27]?.[1];
-  const squirrelLevel = gamingSproutRaw?.[27]?.[0];
+  const [squirrelLevel, lastAcornClicked, squirrelMulti] = gamingSproutRaw?.[27];
   const acorns = calcAcorns(lastAcornClicked, squirrelLevel);
   const nuggetsBreakpoints = calcResourcePerTime('nugget');
   const acornsBreakpoints = calcResourcePerTime('acorn', squirrelLevel);
@@ -55,6 +65,7 @@ const parseGaming = (gamingRaw, gamingSproutRaw, characters, account, serverVars
         ? `GamingItem${index}b`
         : `GamingItem${index}` : `GamingItem${index}`,
       minorBonus: bonus?.description,
+      bonus: bonus?.value,
       cost: calcImportCost(index, gamingImportsValues),
       acquired: gamingImportsValues?.[index]?.[0] > 0,
       ...(index === 0 ? {
@@ -68,6 +79,7 @@ const parseGaming = (gamingRaw, gamingSproutRaw, characters, account, serverVars
       } : {})
     }
   }).filter((_, index) => index < 8);
+
   const fertilizerUpgrades = gamingRaw?.slice(1, gamingUpgrades?.length + 1)?.map((level, index) => {
     const bonus = calcFertilizerBonus(index, gamingRaw, gamingSproutRaw, characters, account, acornShop, imports);
     return {
@@ -102,6 +114,8 @@ const parseGaming = (gamingRaw, gamingSproutRaw, characters, account, serverVars
     bits,
     envelopes,
     snailLevel, snailEncouragement,
+    squirrelMulti,
+    elegantShellRank,
     fertilizerUpgrades,
     availableSprouts,
     availableDrops,
@@ -127,7 +141,87 @@ const parseGaming = (gamingRaw, gamingSproutRaw, characters, account, serverVars
   };
 }
 
-export const getNewMutationChance = (unlockedMutations, dna, voteBonus) => {
+export const getBitsMulti = (account, characters) => {
+  // 'SproutValueNonPlantMulti' == e
+  const gummyOrbArtifactBonus = isArtifactAcquired(account?.sailing?.artifacts, 'Gummy_Orb')?.bonus ?? 0;
+  const weatherbookArtifactBonus = isArtifactAcquired(account?.sailing?.artifacts, 'Weatherbook')?.bonus ?? 0;
+  const snailBonus = Math.pow(2, Math.max(0, Math.min(25, account?.gaming?.snailLevel)));
+  const acornBonus = 1 + (8 * account?.gaming?.squirrelMulti) / (250 + account?.gaming?.squirrelMulti);
+  const elegantShellBonus = account?.gaming?.imports?.[3]?.bonus;
+  const mealBonus = getMealsBonusByEffectOrStat(account, null, 'GamingBits');
+  const vialBonus = getVialsBonusByStat(account?.alchemy?.vials, 'GameBits');
+  const bittyLittlyTalentBonus = getHighestTalentByClass(characters, CLASSES.Divine_Knight, 'BITTY_LITTY') ?? 0;
+  const highestGaming = getHighestCharacterSkill(characters, 'gaming');
+  const winBonus = getWinnerBonus(account, '<x Gaming Bits');
+  const lampBonus = getLampBonus({ holesObject: account?.hole?.holesObject, t: 1, i: 1 });
+  const emperorBonus = getEmperorBonus(account, 7);
+  const skillMastery = isMasteryBonusUnlocked(account?.rift, account?.totalSkillsLevels?.gaming?.rank, 1) || 0;
+  const bubbleBonus = getBubbleBonus(account, 'BIT_BY_BIT', false);
+  const ownedLogBooks = account?.gaming?.logBook?.reduce((sum, { unlocked }) => sum + (unlocked ? 1 : 0), 0);
+  const logBookBitBonus = Math.max(1, Math.pow(1.08, ownedLogBooks) + (bubbleBonus * ownedLogBooks) / 100);
+
+  const breakdown = [
+    { title: 'Multiplicative' },
+    { name: 'Gummy Orb Artifact', value: gummyOrbArtifactBonus / 100 },
+    { name: 'Weatherbook Artifact', value: weatherbookArtifactBonus / 100 },
+    { name: 'Monument', value: getMonumentBonus({ holesObject: account?.hole?.holesObject, t: 0, i: 4 }) / 100 },
+    { name: 'Skill mastery', value: 15 * skillMastery / 100 },
+    { name: 'MSA Bonus', value: account?.msaTotalizer?.bit?.value / 100 },
+    { name: 'Snail', value: snailBonus },
+    { name: 'Acorn', value: acornBonus },
+    { name: 'Nugget', value: account?.gaming?.bestNugget },
+    { name: 'Elegant Shell', value: (account?.gaming?.elegantShellRank * elegantShellBonus) / 100 },
+    { name: 'Logbook', value: logBookBitBonus },
+    { name: 'Meal', value: mealBonus / 100 },
+    { name: 'Vial', value: vialBonus / 100 },
+    { name: 'Bitty Litty Talent', value: bittyLittlyTalentBonus * highestGaming / 100 },
+    { name: 'Achievements', value: (1 + (getAchievementStatus(account?.achievements, 296) + getAchievementStatus(account?.achievements, 307)) / 20) },
+    { name: 'Poing', value: Math.max(1, Math.min(25, account?.gaming?.poingMulti)) },
+    { name: 'Summoning', value: winBonus / 100 },
+    { name: 'Lamp', value: lampBonus / 100 },
+    { name: 'Emperor', value: emperorBonus / 100 },
+  ]
+
+  return {
+    value: (1 + gummyOrbArtifactBonus / 100)
+      * (1 + weatherbookArtifactBonus / 100)
+      * (1 + getMonumentBonus({ holesObject: account?.hole?.holesObject, t: 0, i: 4 }) / 100)
+      * (1 + (15 * skillMastery) / 100)
+      * (1 + account?.msaTotalizer?.bit?.value / 100)
+      * Math.max(1, snailBonus)
+      * Math.max(1, acornBonus)
+      * Math.max(1, account?.gaming?.bestNugget)
+      * (1 + (account?.gaming?.elegantShellRank * elegantShellBonus) / 100)
+      * Math.max(1, logBookBitBonus)
+      * (1 + (mealBonus + vialBonus) / 100)
+      * (1 + (bittyLittlyTalentBonus * highestGaming) / 100)
+      * Math.max(1, Math.min(25, account?.gaming?.poingMulti))
+      * (1 + (getAchievementStatus(account?.achievements, 296) + getAchievementStatus(account?.achievements, 307)) / 20)
+      * (1 + winBonus / 100) *
+      (1 + lampBonus / 100) *
+      (1 + emperorBonus / 100),
+    breakdown,
+    expression: `(1 + gummyOrbArtifactBonus / 100)
+  * (1 + weatherbookArtifactBonus / 100)
+  * (1 + monumentBonus / 100)
+  * (1 + (15 * skillMastery) / 100)
+  * (1 + msaBitBonus / 100)
+  * Math.max(1, snailBonus)
+  * Math.max(1, acornBonus)
+  * Math.max(1, bestNugget)
+  * (1 + (account?.gaming?.elegantShellRank * elegantShellBonus) / 100)
+  * Math.max(1, logBookBitBonus)
+  * (1 + (mealBonus + vialBonus) / 100)
+  * (1 + (bittyLittlyTalentBonus * highestGaming) / 100)
+  * Math.max(1, Math.min(25, account?.gaming?.poingMulti))
+  * (1 + (achievement1 + achievement1) / 20)
+  * (1 + winBonus / 100) *
+  (1 + lampBonus / 100) *
+  (1 + emperorBonus / 100)`
+  }
+}
+
+export const getNewMutationChance = (unlockedMutations, dna, voteBonus = 1) => {
   return Math.floor(1e3 * (0 === unlockedMutations
     ? Math.min(0.8, (7 * dna) / (100 + dna) * voteBonus)
     : Math.min(0.99, ((42 * dna) / (100 + dna)) * Math.pow(0.31, unlockedMutations) * voteBonus))) / 10
@@ -249,8 +343,8 @@ const calcFertilizerBonus = (index, gamingRaw, gamingSproutRaw, characters, acco
     const growTime = 5e3 / ((1 + (2 * baseValue) / 100) * baseMath * (1 + moreMath * (baseValue2)));
     const growChance = 1 / calcSproutGrowChance(gamingRaw);
     const final = (growTime * growChance) / 60;
-    const time = Math.floor(100 * (final)) / 100;
-    return time > 60 ? `${Math.floor(100 * time / 60) / 100} Hr` : `${(Math.floor(10 * time) / 10)} Min`;
+    const time = 100 * final / 100;
+    return time > 60 ? `${100 * time / 60 / 100} Hr` : `${(Math.trunc(time * 1000) / 1000)} Min`;
   } else if (index === 2) {
     const baseValue = gamingRaw?.[3];
     const maxSprouts = account?.gemShopPurchases?.find((value, index) => index === 133) ?? 0;

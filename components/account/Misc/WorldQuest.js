@@ -39,19 +39,22 @@ const WorldQuest = ({ quests, characters, totalCharacters, worldName }) => {
                  e.target.src = `${prefix}data/Wb6.png`;
                  e.target.style.width = 'auto';
                }}
-               alt=""/>
+               alt={`world-${worldName}-icon`}/>
       {quests?.[worldName]?.map((npc, index) => {
         let forceCompletion;
         if (npc?.name === 'Picnic_Stowaway') {
           const repeatable = npc?.npcQuests?.find(({ Name }) => Name === 'Live-Action_Entertainment');
           forceCompletion = repeatable?.completed?.length === totalCharacters ? 1 : 0;
-        } else if (npc?.name === 'Scripticus'){
+        } else if (npc?.name === 'Scripticus') {
           const repeatable = npc?.npcQuests?.find(({ Name }) => Name === 'Champion_of_the_Grasslands');
           forceCompletion = repeatable?.completed?.length === totalCharacters ? 1 : 0
+        } else if (npc?.name === 'Potti') {
+          // const repeatable = npc?.npcQuests?.find(({ Name }) => Name === 'Spirit_of_the_Hero');
+          // forceCompletion = repeatable?.completed?.length === totalCharacters ? 1 : 0
         }
         return <StyledAccordion key={npc?.name + index} TransitionProps={{ unmountOnExit: true }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon/>}>
-            <img width={50} height={50} src={`${prefix}npcs/${npc?.name}.gif`} alt=""/>
+            <img width={50} height={50} src={`${prefix}npcs/${npc?.name}.gif`} alt="npc-icon"/>
             <span className={'npc-name'}>{cleanUnderscore(npc?.name)}</span>
             {getQuestIndicator(forceCompletion || npc?.questsStatus)}
           </AccordionSummary>
@@ -80,7 +83,7 @@ const WorldQuest = ({ quests, characters, totalCharacters, worldName }) => {
                             key={charIndex + '' + innerIndex}
                             anchorOrigin={{
                               vertical: 'bottom',
-                              horizontal: 'right',
+                              horizontal: 'right'
                             }}
                             badgeContent={<StatusIndicator
                               color={status === 1 ? '#23bb23' : status === -1 ? '#868484' : '#ff8d00'}/>}>
@@ -89,7 +92,7 @@ const WorldQuest = ({ quests, characters, totalCharacters, worldName }) => {
                                 ? 'Not yet unlocked'
                                 : 'In progress'}`}>
                               <Avatar
-                                alt=""
+                                alt="avatar-icon"
                                 src={`${prefix}data/ClassIcons${characters[charIndex]?.classIndex}.png`}/>
                             </Tooltip>
                           </Badge>
@@ -151,7 +154,7 @@ const QuestTooltip = ({ rewards, itemReq, customArray }) => {
       <Stack direction={'row'} gap={2}>
         {itemReq?.map(({ name, rawName, amount }, index) => {
           return <Stack alignItems={'center'} justifyContent={'center'} key={name + '' + index}>
-            <ItemIcon className={'item-img'} src={`${prefix}data/${rawName}.png`} alt=""/>
+            <ItemIcon className={'item-img'} src={`${prefix}data/${rawName}.png`} alt="item-icon"/>
             <Typography className={'amount'}>{numberWithCommas(amount)}</Typography>
           </Stack>
         })}
@@ -177,7 +180,7 @@ const QuestTooltip = ({ rewards, itemReq, customArray }) => {
                 <ItemIcon
                   title={cleanUnderscore(name || rawName)}
                   src={`${prefix}data/${img}.png`}
-                  alt=""/>
+                  alt="reward-icon"/>
                 {expType ? <Typography variant={'caption'}>{expType} exp</Typography> : null}
                 <Typography className={'amount'}>{numberWithCommas(amount)}</Typography>
               </Stack> :

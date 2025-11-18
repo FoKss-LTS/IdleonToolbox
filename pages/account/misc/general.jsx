@@ -8,7 +8,7 @@ import Totals from 'components/account/Misc/Totals';
 import { AppContext } from 'components/common/context/AppProvider';
 import React, { useContext } from 'react';
 import { NextSeo } from 'next-seo';
-import Box from '@mui/material/Box'; // Grid version 2
+import Box from '@mui/material/Box';
 
 const General = () => {
   const { state } = useContext(AppContext);
@@ -17,19 +17,20 @@ const General = () => {
       title="General | Idleon Toolbox"
       description="General account information"
     />
-    <Stack sx={{ '& > div': { maxWidth: 300 } }} gap={2} justifyContent={'center'} direction={'row'} flexWrap={'wrap'}>
-      <ObolsView obols={state?.account?.obols} type={'account'}/>
-      <Currencies {...(state?.account?.currencies || {})}/>
-      <Shrines shrines={state?.account?.shrines} shrinesExpBonus={state?.account?.shrinesExpBonus}/>
-      <Statues statues={state?.account?.statues} characters={state?.characters}/>
-      <Stack gap={1.5}>
-        <Highscores title={'Colosseum'} highscore={state?.account?.highscores?.coloHighscores}/>
-        <Highscores title={'Minigame'} highscore={state?.account?.highscores?.minigameHighscores}/>
+    <>
+      <Stack sx={{ '& > div': { maxWidth: 300 } }} gap={4} justifyContent={'center'} direction={'row'} flexWrap={'wrap'}>
+        <ObolsView obols={state?.account?.obols} type={'account'} characters={state?.characters}/>
+        <Currencies {...(state?.account?.currencies || {})}/>
+        <Shrines shrines={state?.account?.shrines} shrinesExpBonus={state?.account?.shrinesExpBonus}/>
+        <Statues account={state?.account} characters={state?.characters}/>
+        <Stack gap={1.5}>
+          <Highscores title={'Colosseum'} highscore={state?.account?.highscores?.coloHighscores}/>
+          <Highscores title={'Minigame'} highscore={state?.account?.highscores?.minigameHighscores}/>
+        </Stack>
+        <Totals account={state?.account} characters={state?.characters}/>
       </Stack>
-      <Totals account={state?.account} characters={state?.characters}/>
-    </Stack>
+    </>
   </Box>
 };
-
 
 export default General;

@@ -13,7 +13,7 @@ import {
   Typography
 } from '@mui/material';
 import { AppContext } from '@components/common/context/AppProvider';
-import { cleanUnderscore, prefix } from 'utility/helpers';
+import { cleanUnderscore, numberWithCommas, prefix } from 'utility/helpers';
 import { CardTitleAndValue, CenteredStack, TitleAndValue } from '@components/common/styles';
 
 
@@ -46,7 +46,7 @@ const Islands = () => {
           description,
           unlocked,
           cost,
-          trash,
+          trash = 0,
           currentTrial,
           bestDpsEver,
           shimmerCurrency,
@@ -66,7 +66,7 @@ const Islands = () => {
               {!unlocked ? <Typography>Cost: {cost}</Typography> : null}
               {unlocked && island.hasOwnProperty('trash') ? <CenteredStack>
                 <img src={`${prefix}etc/Trash_Currency.png`} alt={''}/>
-                <Typography>{trash.toFixed(2)}</Typography>
+                <Typography>{parseFloat(trash)?.toFixed(2)}</Typography>
               </CenteredStack> : null}
               {unlocked && currentTrial ? <Stack gap={1}>
                 <TitleAndValue title={'Current trial'} value={cleanUnderscore(currentTrial)}/>
@@ -77,7 +77,7 @@ const Islands = () => {
                 </CenteredStack>
               </Stack> : null}
               {unlocked && hoursAfk ? <Stack gap={1}>
-                <TitleAndValue title={'Hours Afk'} value={cleanUnderscore(hoursAfk)}/>
+                <TitleAndValue title={'Hours Afk'} value={numberWithCommas(hoursAfk)}/>
               </Stack> : null}
             </Stack>
           </CardContent>
@@ -91,17 +91,22 @@ const Islands = () => {
       <DialogTitle>{dialog?.data?.name} shop</DialogTitle>
       <DialogContent>
         <Stack gap={1}>
-          {dialog?.data?.shop?.map(({ effect, cost, upgrades, unlocked, name }, index) => {
+          {dialog?.data?.shop?.map(({ effect, cost, upgrades, unlocked, name, acquired }, index) => {
             const isImage = effect.includes('etc') || effect.includes('data');
             return <Card variant={'outlined'} key={'effect-' + index}
                          sx={{ border: unlocked ? '1px solid' : '', borderColor: unlocked ? 'success.light' : '' }}>
               <CardContent>
-                {name ? <Typography>{name}</Typography> : null}
+                {name ? <Stack direction={'column'} justifyContent={'space-between'}>
+                  <Typography variant={'body1'}>{name}</Typography>
+                  {index !== 4 && index !== 6 ? acquired ? <Typography color={'success.light'}
+                                                                       variant={'caption'}>Acquired</Typography> :
+                    <Typography variant={'caption'}>Not acquired</Typography> : null}
+                </Stack> : null}
                 <Stack gap={isImage ? 1 : 0} direction={isImage ? 'row' : 'column'}
                        alignItems={isImage ? 'center' : 'flex-start'}>
                   {isImage ? <img style={{ width: 30 }} src={`${prefix}${effect}.png`} alt={''}/> :
                     <Typography>{cleanUnderscore(effect)}</Typography>}
-                  <Typography>Cost: {cost} {upgrades ? `(${upgrades})` : ''}</Typography>
+                  <Typography variant={'body2'}>Cost: {cost} {upgrades ? `(${upgrades})` : ''}</Typography>
                 </Stack>
               </CardContent>
             </Card>

@@ -60,6 +60,7 @@ const Timer = forwardRef(({
         let duration = getDuration(new Date().getTime(), startDate);
         return setTime({ ...duration });
       }
+      return;
     }
     seconds -= 1;
     if (seconds === -1) {
@@ -87,6 +88,7 @@ const Timer = forwardRef(({
   }, !pause && !staticTime ? 1000 : null);
 
   const wrapNumber = (number) => {
+    if (!number) return '00';
     const strNumber = String(number);
     return strNumber?.length === 1 ? `0${number}` : number;
   }

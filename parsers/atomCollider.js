@@ -3,6 +3,8 @@ import { atomsInfo } from '../data/website-data';
 import { getBubbleBonus } from './alchemy';
 import { isSuperbitUnlocked } from './gaming';
 import { getStampsBonusByEffect } from '@parsers/stamps';
+import { getGrimoireBonus } from '@parsers/grimoire';
+import { getCompassBonus } from '@parsers/compass';
 
 export const getAtoms = (idleonData, account) => {
   const atomsRaw = tryToParse(idleonData?.Atoms) || idleonData?.Atoms
@@ -17,11 +19,12 @@ const parseAtoms = (divinityRaw, atomsRaw, account) => {
     const level = localAtoms?.[index] ?? 0;
     const atomColliderLevel = account?.towers?.data?.[8]?.level ?? 0;
     const atomReductionFromAtom = atomsRaw?.[9] ?? 0;
-    const bubbleBonus = getBubbleBonus(account?.alchemy?.bubbles, 'kazam', 'ATOM_SPLIT', false)
+    const bubbleBonus = getBubbleBonus(account, 'ATOM_SPLIT', false)
     const reduxSuperbit = isSuperbitUnlocked(account, 'Atom_Redux')?.unlocked ?? 0;
     const maxLevelSuperbit = isSuperbitUnlocked(account, 'Isotope_Discovery') ?? 0;
     const stampBonusReduction = getStampsBonusByEffect(account, 'Lower_Atom_Upgrade_Costs');
-    const maxLevel = Math.round(20 + 10 * (+!!maxLevelSuperbit));
+    const compassBonus = getCompassBonus(account, 53);
+    const maxLevel = Math.round(20 + (10 * (maxLevelSuperbit ? 1 : 0) + compassBonus));
 
     const costObject = {
       account,
@@ -70,11 +73,11 @@ const getCost = ({
                    level
                  }) => {
   // 'AtomCost' == e
-  const baseCost = (1 / (1 + (stampBonusReduction + atomReductionFromAtom + 10 * (reduxSuperbit
-      ? 1
-      : 0) + bubbleBonus + atomColliderLevel / 10 + 7
-    * account?.tasks?.[2][4][6]) / 100));
-  return baseCost * (atomInfo?.x3 + atomInfo?.x1 * level) * Math.pow(atomInfo?.x2, level)
+  const grimoireBonus = getGrimoireBonus(account?.grimoire?.upgrades, 51);
+  const compassBonus = getCompassBonus(account, 50);
+  const baseCost = (1 / (1 + (stampBonusReduction + atomReductionFromAtom + 10 * (reduxSuperbit ? 1 : 0)
+    + (grimoireBonus + compassBonus) + bubbleBonus + atomColliderLevel / 10 + 7 * account?.tasks?.[2][4][6]) / 100));
+  return baseCost * (atomInfo?.x3 + atomInfo?.x1 * level) * Math.pow(atomInfo?.x2, level);
 }
 const getCostToMax = (costObject) => {
   let total = 0;
@@ -114,5 +117,5 @@ export const getAtomColliderThreshold = (threshold) => {
 }
 
 export const calcTotalAtomLevels = (atoms) => {
-  return atoms?.reduce((sum, {level}) => sum + level, 0);
+  return atoms?.reduce((sum, { level }) => sum + level, 0);
 }

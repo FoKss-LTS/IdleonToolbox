@@ -1,14 +1,16 @@
-import { Card, CardContent, Stack, Tooltip, Typography } from '@mui/material';
+import { Card, CardContent, Stack, Typography } from '@mui/material';
 import React, { useContext } from 'react';
 import { AppContext } from '@components/common/context/AppProvider';
 import ProgressBar from '../../../components/common/ProgressBar';
 import { getCoinsArray, notateNumber, prefix } from '@utility/helpers';
 import darkTheme from '../../../styles/theme/darkTheme';
-import { PlayersList } from '@components/common/styles';
+import { Breakdown, PlayersList } from '@components/common/styles';
 import Box from '@mui/material/Box';
 import { NextSeo } from 'next-seo';
 import CoinDisplay from '@components/common/CoinDisplay';
 import { CAULDRONS_MAX_LEVELS } from '@parsers/alchemy';
+import Tooltip from '@components/Tooltip';
+import { IconInfoCircleFilled } from '@tabler/icons-react';
 
 const cauldronsColors = [
   darkTheme.palette.warning.light,
@@ -79,7 +81,13 @@ const Cauldrons = () => {
       <Stack direction={'row'} flexWrap={'wrap'} gap={2}>
         {alchemy?.p2w.liquids?.map((cauldron, index) => {
           const { name, regen, capacity, players } = cauldron;
-          const { maxLiquid, decantCap, decantRate } = alchemy?.liquidCauldrons?.[index];
+          const {
+            maxLiquid,
+            decantCap,
+            decantRate,
+            isDragonic,
+            maxLiquidBreakdown
+          } = alchemy?.liquidCauldrons?.[index];
           const currentLiquid = alchemy?.liquids?.[index];
           return <Card key={`${name}-${index}`}>
             <CardContent>
@@ -91,10 +99,21 @@ const Cauldrons = () => {
                                 display: 'inline-block',
                                 mr: 1
                               }}>{name.capitalize()}</Typography>
-                  <PlayersList players={players} characters={state?.characters}/>
+                  <Stack direction={'row'} alignItems={'center'} gap={1}>
+                    {isDragonic ? <Tooltip title={'Dragonic cauldron'}>
+                      <img style={{ width: 24, height: 24, objectFit: 'contain' }} src={`${prefix}data/GemP18.png`}
+                           alt=""/>
+                    </Tooltip> : null}
+                    <PlayersList players={players} characters={state?.characters}/>
+                  </Stack>
                 </Stack>
               </Stack>
-              <Typography variant={'caption'}>{Math.round(currentLiquid)} / {maxLiquid}</Typography>
+              <Stack direction={'row'} gap={1} alignItems={'center'}>
+                <Typography variant={'caption'}>{Math.round(currentLiquid)} / {maxLiquid}</Typography>
+                <Tooltip title={<Breakdown titleStyle={{ width: 170 }} breakdown={maxLiquidBreakdown} notation={'MultiplierInfo'}/>}>
+                  <IconInfoCircleFilled size={18}/>
+                </Tooltip>
+              </Stack>
               <ProgressBar bgColor={liquidsColors?.[index]}
                            pre={<img src={`${prefix}data/Liquid${index + 1}_x1.png`} alt=""/>}
                            percent={currentLiquid / maxLiquid * 100}/>
@@ -111,7 +130,8 @@ const Cauldrons = () => {
                     <Typography>{notateNumber(decantRate?.progress)}/{notateNumber(decantRate?.req)}</Typography>
                   </CardContent>
                 </Card>
-                <CostTooltip shouldDisplay={regen?.level < CAULDRONS_MAX_LEVELS.liquidsRegen} cost={regen?.cost} costToMax={regen?.costToMax}>
+                <CostTooltip shouldDisplay={regen?.level < CAULDRONS_MAX_LEVELS.liquidsRegen} cost={regen?.cost}
+                             costToMax={regen?.costToMax}>
                   <Card variant={'outlined'} sx={{
                     outline: regen?.level >= CAULDRONS_MAX_LEVELS.liquidsRegen ? '1px solid' : '',
                     outlineColor: (theme) => regen?.level >= CAULDRONS_MAX_LEVELS.liquidsRegen
@@ -124,7 +144,8 @@ const Cauldrons = () => {
                     </CardContent>
                   </Card>
                 </CostTooltip>
-                <CostTooltip shouldDisplay={capacity?.level < CAULDRONS_MAX_LEVELS.liquidsRegen} cost={capacity?.cost} costToMax={capacity?.costToMax}>
+                <CostTooltip shouldDisplay={capacity?.level < CAULDRONS_MAX_LEVELS.liquidsRegen} cost={capacity?.cost}
+                             costToMax={capacity?.costToMax}>
                   <Card variant={'outlined'} sx={{
                     outline: capacity?.level >= CAULDRONS_MAX_LEVELS.liquidsCapacity ? '1px solid' : '',
                     outlineColor: (theme) => capacity?.level >= CAULDRONS_MAX_LEVELS.liquidsCapacity
@@ -158,7 +179,8 @@ const Cauldrons = () => {
                             }}>{name.capitalize()}</Typography>
               </Stack>
               <Stack direction={'row'} gap={1} flexWrap={'wrap'}>
-                <CostTooltip shouldDisplay={speed?.level < CAULDRONS_MAX_LEVELS.cauldronsSpeed} cost={speed?.cost} costToMax={speed?.costToMax}>
+                <CostTooltip shouldDisplay={speed?.level < CAULDRONS_MAX_LEVELS.cauldronsSpeed} cost={speed?.cost}
+                             costToMax={speed?.costToMax}>
                   <Card variant={'outlined'} sx={{
                     outline: speed?.level >= CAULDRONS_MAX_LEVELS.cauldronsSpeed ? '1px solid' : '',
                     outlineColor: (theme) => speed?.level >= CAULDRONS_MAX_LEVELS.cauldronsSpeed
@@ -171,7 +193,8 @@ const Cauldrons = () => {
                     </CardContent>
                   </Card>
                 </CostTooltip>
-                <CostTooltip shouldDisplay={newBubble?.level < CAULDRONS_MAX_LEVELS.cauldronsNewBubble} cost={newBubble?.cost} costToMax={newBubble?.costToMax}>
+                <CostTooltip shouldDisplay={newBubble?.level < CAULDRONS_MAX_LEVELS.cauldronsNewBubble}
+                             cost={newBubble?.cost} costToMax={newBubble?.costToMax}>
                   <Card variant={'outlined'} sx={{
                     outline: newBubble?.level >= CAULDRONS_MAX_LEVELS.cauldronsNewBubble ? '1px solid' : '',
                     outlineColor: (theme) => newBubble?.level >= CAULDRONS_MAX_LEVELS.cauldronsNewBubble
@@ -184,7 +207,8 @@ const Cauldrons = () => {
                     </CardContent>
                   </Card>
                 </CostTooltip>
-                <CostTooltip shouldDisplay={boostReq?.level < CAULDRONS_MAX_LEVELS.cauldronsBoostReq} cost={boostReq?.cost} costToMax={boostReq?.costToMax}>
+                <CostTooltip shouldDisplay={boostReq?.level < CAULDRONS_MAX_LEVELS.cauldronsBoostReq}
+                             cost={boostReq?.cost} costToMax={boostReq?.costToMax}>
                   <Card variant={'outlined'} sx={{
                     outline: boostReq?.level >= CAULDRONS_MAX_LEVELS.cauldronsBoostReq ? '1px solid' : '',
                     outlineColor: (theme) => boostReq?.level >= CAULDRONS_MAX_LEVELS.cauldronsBoostReq
@@ -206,8 +230,8 @@ const Cauldrons = () => {
         <Box>
           <Typography my={3} variant={'h5'} mb={3}>Player</Typography>
           <Stack direction={'row'} gap={1} flexWrap={'wrap'}>
-            <Section title={'Alch speed'} value={alchemy?.p2w?.player?.speed}/>
-            <Section title={'Extra Exp'} value={alchemy?.p2w?.player?.extraExp}/>
+            <Section title={'Alch speed'} value={alchemy?.p2w?.player?.speedLv}/>
+            <Section title={'Extra Exp'} value={alchemy?.p2w?.player?.extraExpLv}/>
           </Stack>
         </Box>
         <Box>

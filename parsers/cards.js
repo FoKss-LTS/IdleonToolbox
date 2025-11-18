@@ -52,7 +52,6 @@ const parseCards = (cardsRaw, rawRift, account) => {
     }, {});
 }
 
-
 export const calculateCardSetStars = (card, bonus) => {
   if (!card || !bonus) return null;
   return (bonus / card?.bonus) - 1;
@@ -64,6 +63,31 @@ export const getEquippedCardBonus = (cards, cardInd) => {
   return calcCardBonus(card);
 }
 
+export const getCardSets = (account) => {
+  const cardSetsObject = Object.values(cardSets).reduce((res, cardSet, realIndex) => ({
+    ...res,
+    [cardSet?.name]: ({ ...cardSet, totalStars: 0, realIndex })
+  }), {});
+
+  const tempCards = Object.entries(cards)?.reduce((res, [, cardDetails]) => {
+    const { category, displayName } = cardDetails;
+    const { stars, amount } = account?.cards?.[displayName] || {};
+    cardSetsObject[category].totalStars += (stars === 0 && amount > 0 ? 1 : stars > 0 ? stars + 1 : 0);
+    return { ...res, [category]: [...(res?.[category] || []), cardDetails] };
+  }, {});
+
+  const setsArray = Object.values(cardSetsObject);
+  const setsCount = setsArray.length || 1;
+
+  // Step 3: Update each set with stars and amount
+  setsArray.forEach((set) => {
+    set.stars = Math.floor(set.totalStars / tempCards?.[set?.name]?.length) - 1;
+    set.amount = set.totalStars;
+  });
+
+  return cardSetsObject;
+}
+
 export const getTotalCardBonusById = (cards, bonusId) => {
   return cards?.reduce((res, card) => card?.effect === bonuses?.cardBonuses?.[bonusId]
     ? res + calcCardBonus(card)
@@ -72,7 +96,7 @@ export const getTotalCardBonusById = (cards, bonusId) => {
 
 export const getCardBonusByEffect = (cards, effectName) => {
   return Object.values(cards || {})?.reduce((sum, card) => {
-    if (!card?.effect?.includes(effectName)) return sum;
+    if (!card?.effect?.includes(effectName) || card?.amount <= 0) return sum;
     return sum + calcCardBonus(card);
   }, 0);
 }
@@ -84,7 +108,7 @@ export const calcCardBonus = (card) => {
 
 export const getPlayerCards = (char, account) => {
   if (!char?.[`CSetEq`] && !char?.[`CardEquip`]) return {};
-  const cardSet = char?.[`CSetEq`];
+  const cardSet = char?.[`CSetEq`] || {};
   const equippedCards = getEquippedCardsData(char?.[`CardEquip`], account);
   const cardsSetObject = cardSets[Object.keys(cardSet)?.[0]] || {};
   return {
@@ -106,5 +130,5 @@ export const getEquippedCardsData = (cardsArray, account) => {
 
 export const calcCardsLevels = (cards) => {
   if (!cards) return 0;
-  return Object.values(cards)?.reduce((res, { stars }) => res + (stars + 1), 0);
+  return Object.values(cards)?.reduce((res, { stars, amount }) => res + (amount > 0 ? (stars + 1) : 0), 0);
 };
